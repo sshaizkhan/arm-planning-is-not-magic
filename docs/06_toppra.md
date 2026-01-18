@@ -15,7 +15,7 @@ Given:
     (q(s),; s \in [0,1])
     ```
 * Joint velocity limits:
-     ```math
+    ```math
     (|\dot{q}*i| \le \dot{q}*{i,max})
     ```
 * Joint acceleration limits:
