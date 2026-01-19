@@ -257,4 +257,4 @@ The next question:
 
 Continue with:
 
-👉 `docs/06_toppra.md`
+👉 [Time-Optimal Path Parameterization (TOPP-RA)](`docs/06_toppra.md`)

@@ -256,4 +256,4 @@ Raad more here:
 
 Continue with:
 
-👉 `docs/02_ik_vs_planning.md`
+👉 [Inverse Kinematics (IK) vs Motion Planning](`docs/02_ik_vs_planning.md`)

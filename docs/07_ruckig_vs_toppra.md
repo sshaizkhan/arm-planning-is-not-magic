@@ -212,3 +212,7 @@ Optional next topics:
 * Controllers
 * Ceres-based smoothing
 * Full pipeline examples
+
+Continue with:
+
+👉 [Ceres and Trajectory Optimization](`docs/08_ceres_and_trajectory_optimization.md`)
