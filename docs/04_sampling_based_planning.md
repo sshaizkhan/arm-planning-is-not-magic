@@ -300,4 +300,4 @@ The next missing piece:
 
 Continue with:
 
-👉 `docs/05_path_vs_trajectory.md`
+👉 [Path vs Trajectory](`docs/05_path_vs_trajectory.md`)

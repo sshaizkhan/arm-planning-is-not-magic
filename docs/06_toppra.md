@@ -235,4 +235,4 @@ Why?
 
 Continue with:
 
-👉 `docs/07_ruckig_vs_toppra.md`
+👉 [Ruckig vs TOPP-RA (Why Industry Chooses Ruckig)](`docs/07_ruckig_vs_toppra.md`)
