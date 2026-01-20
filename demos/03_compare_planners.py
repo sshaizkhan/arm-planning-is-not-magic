@@ -130,30 +130,47 @@ def print_comparison_table(results):
 
     print("=" * 100)
 
-    # Summary statistics
-    successful = [r for r in results.values() if r["success"]]
+    # Analysis
+    successful = [(name, r) for name, r in results.items() if r["success"]]
     if successful:
-        print("\nSUMMARY STATISTICS (Successful planners only):")
+        print("\n" + "=" * 100)
+        print("ANALYSIS")
+        print("=" * 100)
+
+        # 1. Top 3 fastest planners
+        print("\n1. TOP 3 FASTEST PLANNERS (by planning time):")
         print("-" * 50)
-        avg_planning_time = np.mean([r["planning_time"] for r in successful])
-        avg_path_length = np.mean([r["path_length"] for r in successful])
-        avg_waypoints = np.mean([r["num_waypoints"] for r in successful])
-        avg_traj_duration = np.mean([r["trajectory_duration"] for r in successful])
+        fastest = sorted(successful, key=lambda x: x[1]["planning_time"])[:3]
+        for i, (name, metrics) in enumerate(fastest, 1):
+            print(f"   {i}. {name:15s}: {metrics['planning_time']:.4f} s")
 
-        print(f"Average Planning Time: {avg_planning_time:.4f} s")
-        print(f"Average Path Length:   {avg_path_length:.4f}")
-        print(f"Average Waypoints:     {avg_waypoints:.1f}")
-        print(f"Average Traj Duration: {avg_traj_duration:.4f} s")
+        # 2. Path quality analysis
+        print("\n2. PATH QUALITY (shorter is better):")
+        print("-" * 50)
+        path_quality = sorted(successful, key=lambda x: x[1]["path_length"])
+        shortest = path_quality[0]
+        longest = path_quality[-1]
+        median_idx = len(path_quality) // 2
+        median = path_quality[median_idx]
 
-        # Best performers
-        best_time = min(successful, key=lambda x: x["planning_time"])
-        best_length = min(successful, key=lambda x: x["path_length"])
-        best_traj = min(successful, key=lambda x: x["trajectory_duration"])
+        print(f"   Shortest:  {shortest[0]:15s}: {shortest[1]['path_length']:.4f}")
+        print(f"   Median:    {median[0]:15s}: {median[1]['path_length']:.4f}")
+        print(f"   Longest:   {longest[0]:15s}: {longest[1]['path_length']:.4f}")
+        print(f"   Range:     {longest[1]['path_length'] - shortest[1]['path_length']:.4f}")
 
-        print("\nBEST PERFORMERS:")
-        print(f"  Fastest Planning:    {best_time['planning_time']:.4f} s")
-        print(f"  Shortest Path:        {best_length['path_length']:.4f}")
-        print(f"  Fastest Trajectory:   {best_traj['trajectory_duration']:.4f} s")
+        # 3. Trajectory duration analysis
+        print("\n3. TRAJECTORY DURATION (faster execution is better):")
+        print("-" * 50)
+        traj_sorted = sorted(successful, key=lambda x: x[1]["trajectory_duration"])
+        fastest_traj = traj_sorted[0]
+        slowest_traj = traj_sorted[-1]
+        median_traj_idx = len(traj_sorted) // 2
+        median_traj = traj_sorted[median_traj_idx]
+
+        print(f"   Fastest:   {fastest_traj[0]:15s}: {fastest_traj[1]['trajectory_duration']:.4f} s")
+        print(f"   Median:    {median_traj[0]:15s}: {median_traj[1]['trajectory_duration']:.4f} s")
+        print(f"   Slowest:   {slowest_traj[0]:15s}: {slowest_traj[1]['trajectory_duration']:.4f} s")
+        print(f"   Range:     {slowest_traj[1]['trajectory_duration'] - fastest_traj[1]['trajectory_duration']:.4f} s")
 
 
 def main():
