@@ -263,4 +263,4 @@ That is the job of **collision checking**.
 
 Continue with:
 
-👉 [Collision Checking](`docs/03_collision_checking.md`)
+[Collision Checking](03_collision_checking.md)
