@@ -14,6 +14,7 @@ Run with: python demos/05_visualization_demo.py
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
@@ -194,9 +195,9 @@ def main():
 
     # Plot 11: Trajectory animation
     print("    [11/10] Trajectory Animation")
-    anim = animate_trajectory(traj_toppra, visualizer)
-    anim.save("trajectory.gif", writer="pillow")
-    print("    Animation saved to trajectory.gif")
+    viz = RobotVisualizer()
+    anim = animate_trajectory(traj_toppra, viz)  # noqa: F841
+    plt.show()
 
     # ---------------------------
     # Summary
