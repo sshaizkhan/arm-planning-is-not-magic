@@ -76,13 +76,29 @@ class RobotModel(ABC):
 
 
 class UR5RobotModel(RobotModel):
-    """Robot model for the UR5 robot."""
+    """Robot model for the UR5 robot with OPW kinematics."""
 
-    def __init__(self):
-        """Initialize the robot model."""
+    def __init__(self, use_opw: bool = True):
+        """
+        Initialize the robot model.
+
+        Args:
+            use_opw: If True, use OPW kinematics for FK (requires OPW parameters)
+        """
         self._dof = 6
         self._lower = np.array([-2*np.pi] * 6)
         self._upper = np.array([2*np.pi] * 6)
+        self._use_opw = use_opw
+        self._opw_kinematics = None
+
+        if use_opw:
+            try:
+                from core.kinematics.opw import OPWKinematics
+                from core.kinematics.opw_parameters import OPWParameters
+                params = OPWParameters.make_ur5()
+                self._opw_kinematics = OPWKinematics(self, params)
+            except ImportError:
+                self._use_opw = False
 
     def dof(self) -> int:
         """Return number of joints (dimensions of C-space)."""
@@ -93,15 +109,22 @@ class UR5RobotModel(RobotModel):
         return self._lower, self._upper
 
     def fk(self, q: np.ndarray) -> np.ndarray:
-        """Forward kinematics.
+        """
+        Forward kinematics.
 
         Args:
             q: Joint configuration, shape (dof,)
 
         Returns:
-            End-effector pose
+            End-effector pose as 4x4 transformation matrix
         """
-        raise NotImplementedError('Forward kinematics is not implemented for the UR5 robot model.')
+        if self._use_opw and self._opw_kinematics is not None:
+            return self._opw_kinematics.forward_kinematics(q)
+        else:
+            raise NotImplementedError(
+                'Forward kinematics requires OPW kinematics. '
+                'Install dependencies or set use_opw=False.'
+            )
 
     def in_collision(self, q: np.ndarray) -> bool:
         """Check if a joint configuration is in collision.
