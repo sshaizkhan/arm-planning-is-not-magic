@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  arm-planning:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: arm-planning-is-not-magic:latest
+    container_name: arm-planning-dev
+    volumes:
+      # Mount the project directory for live development
+      - ..:/workspace/arm-planning-is-not-magic
+      # Mount a volume for persistent data
+      - arm-planning-data:/data
+    working_dir: /workspace/arm-planning-is-not-magic
+    environment:
+      - PYTHONPATH=/workspace/arm-planning-is-not-magic
+      - DISPLAY=${DISPLAY:-:0}
+    stdin_open: true
+    tty: true
+    # Uncomment for GUI support (X11 forwarding)
+    # network_mode: host
+    # volumes:
+    #   - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+volumes:
+  arm-planning-data:

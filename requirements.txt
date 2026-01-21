@@ -1,0 +1,5 @@
+numpy>=1.20.0
+toppra>=0.2.0
+ruckig>=0.11.0
+matplotlib>=3.5.0
+setuptools>=61.0
