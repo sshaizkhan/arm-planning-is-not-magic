@@ -14,7 +14,6 @@ Run with: python demos/05_visualization_demo.py
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
@@ -35,6 +34,7 @@ from visualization.path_3d import (
     plot_ee_path_with_waypoints,
     plot_ee_components,
 )
+
 from visualization.robot_visualizer import (
     RobotVisualizer,
     animate_trajectory,
@@ -191,6 +191,12 @@ def main():
         title="Trajectory Motion (green=start, red=end)",
         show=True
     )
+
+    # Plot 11: Trajectory animation
+    print("    [11/10] Trajectory Animation")
+    anim = animate_trajectory(traj_toppra, visualizer)
+    anim.save("trajectory.gif", writer="pillow")
+    print("    Animation saved to trajectory.gif")
 
     # ---------------------------
     # Summary
