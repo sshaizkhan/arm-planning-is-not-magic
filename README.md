@@ -94,7 +94,13 @@ arm-planning-is-not-magic/
 │   ├── 01_plan_and_time.py    # Basic planning + timing pipeline
 │   ├── 02_toppra_vs_ruckig.py # Compare parameterizers visually
 │   ├── 03_compare_planners.py # Benchmark all 7 OMPL planners
-│   └── 04_collision_demo.py   # Planning with obstacles
+│   ├── 04_collision_demo.py   # Planning with obstacles
+│   └── 05_visualization_demo.py # Visualization examples
+│
+├── visualization/             # Plotting and animation utilities
+│   ├── trajectory_plots.py    # Joint-space plots (pos, vel, acc)
+│   ├── path_3d.py             # End-effector 3D visualization
+│   └── robot_visualizer.py    # Stick-figure arm animation
 │
 ├── docker/                    # Container setup
 └── requirements.txt

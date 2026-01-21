@@ -9,4 +9,4 @@ description = "Motion planning library for robotic arms"
 requires-python = ">=3.8"
 
 [tool.setuptools]
-packages = ["core", "planners", "parameterization", "demos"]
+packages = ["core", "planners", "parameterization", "demos", "visualization"]
