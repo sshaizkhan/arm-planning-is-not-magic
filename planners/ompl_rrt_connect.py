@@ -7,8 +7,8 @@ This module uses the OMPL RRT connect algorithm to plan a path between two state
 import numpy as np
 
 try:
-    from ompl import base as ob  # type: ignore
-    from ompl import geometric as og  # type: ignore
+    from ompl import base as ob
+    from ompl import geometric as og
 except ImportError:
     raise ImportError(
         "OMPL Python bindings are required. "
@@ -28,8 +28,8 @@ class OMPLRRTConnectPlanner:
         # ------------------------------------------------------------------
         # OMPL state space definition
         # ------------------------------------------------------------------
-        self.ompl_space = ob.RealVectorStateSpace(self.dim)  # type: ignore
-        bounds = ob.RealVectorBounds(self.dim)  # type: ignore
+        self.ompl_space = ob.RealVectorStateSpace(self.dim)
+        bounds = ob.RealVectorBounds(self.dim)
         lower, upper = self.robot.joint_limits()
 
         for i in range(self.dim):
@@ -41,13 +41,13 @@ class OMPLRRTConnectPlanner:
         # ------------------------------------------------------------------
         # Space information
         # ------------------------------------------------------------------
-        self.si = ob.SpaceInformation(self.ompl_space)  # type: ignore
+        self.si = ob.SpaceInformation(self.ompl_space)
 
         def is_state_valid(state):
             q = np.array([state[i] for i in range(self.dim)])
             return self.state_space.is_valid(q)
 
-        self.si.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))  # type: ignore
+        self.si.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))
         self.si.setup()
 
         self.step_size = step_size
@@ -68,17 +68,17 @@ class OMPLRRTConnectPlanner:
         Returns:
             List of joint configurations (path), or None if failed.
         """
-        start = ob.State(self.ompl_space)  # type: ignore
-        goal = ob.State(self.ompl_space)  # type: ignore
+        start = ob.State(self.ompl_space)
+        goal = ob.State(self.ompl_space)
         for i in range(self.dim):
             start[i] = q_start[i]
             goal[i] = q_goal[i]
 
-        pdef = ob.ProblemDefinition(self.si)  # type: ignore
+        pdef = ob.ProblemDefinition(self.si)
         pdef.setStartAndGoalStates(start, goal)
 
-        planner = og.RRTConnect(self.si)  # type: ignore
-        planner.setRange(self.step_size)  # type: ignore
+        planner = og.RRTConnect(self.si)
+        planner.setRange(self.step_size)
         planner.setProblemDefinition(pdef)
         planner.setup()
 
