@@ -215,4 +215,4 @@ Optional next topics:
 
 Continue with:
 
-👉 [Ceres and Trajectory Optimization](`docs/08_ceres_and_trajectory_optimization.md`)
+[Ceres and Trajectory Optimization](08_ceres_and_trajectory_optimization.md)

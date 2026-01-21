@@ -16,14 +16,12 @@ From the previous chapter, sampling-based planners (RRT, PRM, etc.) output:
 
 Formally, this is a **path**:
 
-```math
-q(s), \quad s \in [0, 1]
-```
+$$q(s), \quad s \in [0, 1]$$
 
 Where:
 
-* (s) is a *path parameter*
-* (s) is **not time**
+* $s$ is a *path parameter*
+* $s$ is **not time**
 
 > This distinction is everything.
 
@@ -63,11 +61,8 @@ The planner’s job ends here.
 
 A **trajectory** is:
 
-```math
-[
-q(t), \quad t \in [0, T]
-]
-```
+$$q(t), \quad t \in [0, T]$$
+
 Where:
 
 * Time is explicit
@@ -75,8 +70,8 @@ Where:
 
 A trajectory must satisfy:
 
-* Velocity limits: (|\dot{q}| \le \dot{q}_{max})
-* Acceleration limits: (|\ddot{q}| \le \ddot{q}_{max})
+* Velocity limits: $|\dot{q}| \le \dot{q}_{max}$
+* Acceleration limits: $|\ddot{q}| \le \ddot{q}_{max}$
 * Sometimes jerk limits
 
 > Trajectories are *physical*. Paths are *geometric*.
@@ -87,19 +82,11 @@ A trajectory must satisfy:
 
 To go from path → trajectory, we introduce:
 
-```math
-[
-s = s(t)
-]
-```
+$$s = s(t)$$
 
 Then:
 
-```math
-[
-q(t) = q(s(t))
-]
-```
+$$q(t) = q(s(t))$$
 
 This is called **path parameterization**.
 
@@ -153,28 +140,13 @@ Increasing speed does **not**:
 
 ## 7. Path Derivatives and Constraints
 
-Given a path (q(s)):
+Given a path $q(s)$:
 
-```math
-[
-\dot{q} = q'(s) \dot{s}
-]
-```
+$$\dot{q} = q'(s) \cdot \dot{s}$$
 
-```math
-[
-\ddot{q} = q''(s) \dot{s}^2 + q'(s) \ddot{s}
-]
-```
+$$\ddot{q} = q''(s) \cdot \dot{s}^2 + q'(s) \cdot \ddot{s}$$
 
-Joint limits impose constraints on:
-
-```math
-* (\dot{s})
-
-
-* (\ddot{s})
-```
+Joint limits impose constraints on $\dot{s}$ and $\ddot{s}$.
 
 This turns timing into a **1D constrained optimization problem**.
 
@@ -189,7 +161,7 @@ Given:
 
 Find:
 
-> The fastest valid (s(t))
+> The fastest valid $s(t)$
 
 This is the **TOPP problem**.
 
@@ -257,4 +229,4 @@ The next question:
 
 Continue with:
 
-👉 [Time-Optimal Path Parameterization (TOPP-RA)](`docs/06_toppra.md`)
+[Time-Optimal Path Parameterization (TOPP-RA)](06_toppra.md)

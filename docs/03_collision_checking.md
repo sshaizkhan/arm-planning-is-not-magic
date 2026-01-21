@@ -298,4 +298,4 @@ The next question is inevitable:
 
 Continue with:
 
-👉 [Sampling-Based Planning](`docs/04_sampling_based_planning.md`)
+[Sampling-Based Planning](04_sampling_based_planning.md)

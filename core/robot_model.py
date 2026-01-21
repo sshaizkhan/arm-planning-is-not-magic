@@ -78,18 +78,21 @@ class RobotModel(ABC):
 class UR5RobotModel(RobotModel):
     """Robot model for the UR5 robot with OPW kinematics."""
 
-    def __init__(self, use_opw: bool = True):
+    def __init__(self, use_opw: bool = True, collision_manager=None):
         """
         Initialize the robot model.
 
         Args:
             use_opw: If True, use OPW kinematics for FK (requires OPW parameters)
+            collision_manager: Optional CollisionManager instance for collision checking.
+                              If None, in_collision always returns False.
         """
         self._dof = 6
         self._lower = np.array([-2*np.pi] * 6)
         self._upper = np.array([2*np.pi] * 6)
         self._use_opw = use_opw
         self._opw_kinematics = None
+        self._collision_manager = collision_manager
 
         if use_opw:
             try:
@@ -99,6 +102,15 @@ class UR5RobotModel(RobotModel):
                 self._opw_kinematics = OPWKinematics(self, params)
             except ImportError:
                 self._use_opw = False
+
+    def set_collision_manager(self, collision_manager):
+        """
+        Set or update the collision manager.
+
+        Args:
+            collision_manager: CollisionManager instance
+        """
+        self._collision_manager = collision_manager
 
     def dof(self) -> int:
         """Return number of joints (dimensions of C-space)."""
@@ -135,6 +147,8 @@ class UR5RobotModel(RobotModel):
         Returns:
             True if in collision, False otherwise
         """
+        if self._collision_manager is not None:
+            return self._collision_manager.in_collision(q)
         return False
 
     def distance(self, q1: np.ndarray, q2: np.ndarray) -> np.floating:

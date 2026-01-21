@@ -53,14 +53,7 @@ v_max = np.ones(dof) * 1.0  # rad/s
 a_max = np.ones(dof) * 2.0  # rad/s^2
 
 toppra = ToppraTimeParameterizer(v_max, a_max)
-
-# Compute time stamps and duration first
-time_stamps, _ = toppra.compute(path)
-
-# Preallocate trajectory array to avoid memory allocation issues
-trajectory = np.zeros((len(time_stamps), dof))
-for i, t in enumerate(time_stamps):
-    trajectory[i, :] = toppra.compute(path)[1][i, :]
+time_stamps, trajectory = toppra.compute(path)
 
 # ---------------------------
 # 5. Print summary statistics
@@ -68,7 +61,5 @@ for i, t in enumerate(time_stamps):
 print(f"Trajectory duration: {time_stamps[-1]:.3f} s")
 print(f"Number of samples: {trajectory.shape[0]}")
 print(f"Sampled trajectory shape: {trajectory.shape}")
-print("First waypoint:", trajectory[0])
-for i in range(len(trajectory)):
-    print(f"Waypoint {i}:", trajectory[i, :])
-print("Last waypoint:", trajectory[-1])
+print(f"First waypoint: {trajectory[0]}")
+print(f"Last waypoint:  {trajectory[-1]}")

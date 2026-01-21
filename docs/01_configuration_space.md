@@ -12,21 +12,17 @@ A robot’s **configuration** is the *minimum set of variables* needed to comple
 
 For a robot arm, those variables are its **joint values**.
 
-### Example: 2‑DOF Planar Arm
+### Example: 2-DOF Planar Arm
 
-```math
-[
+$$
 q = [\theta_1, \theta_2]
-]
-```
+$$
 
 This vector lives in:
 
-```math
-[
+$$
 \mathcal{C} = \mathbb{R}^2
-]
-```
+$$
 
 This space is called **configuration space**, or **C‑space**.
 
@@ -38,23 +34,13 @@ This space is called **configuration space**, or **C‑space**.
 
 ### Task (Cartesian) Space
 
-* Describes **end‑effector position and orientation**
-* Example:
-  ```math
-  [
-  (x, y) \in \mathbb{R}^2
-  ]
-  ```
+* Describes **end-effector position and orientation**
+* Example: $(x, y) \in \mathbb{R}^2$
 
 ### Configuration Space
 
 * Describes **joint angles**
-* Example:
-  ```math
-  [
-  (\theta_1, \theta_2) \in \mathbb{R}^2
-  ]
-  ```
+* Example: $(\theta_1, \theta_2) \in \mathbb{R}^2$
 
 ### Critical Difference
 
@@ -72,31 +58,23 @@ This is why planning in Cartesian space alone fails for real robots.
 
 Forward kinematics (FK) is a function:
 
-```math
-[
+$$
 f : \mathcal{C} \rightarrow \mathcal{W}
-]
-```
+$$
 
 Where:
+* $\mathcal{C}$ = configuration space
+* $\mathcal{W}$ = workspace (task space)
 
-```math
-* (\mathcal{C}) = configuration space
-* (\mathcal{W}) = workspace (task space)
-```
+For a planar 2-DOF arm:
 
-For a planar 2‑DOF arm:
-
-```math
-    [
+$$
 x = l_1\cos\theta_1 + l_2\cos(\theta_1 + \theta_2)
-```
+$$
 
-```math
-[
+$$
 y = l_1\sin\theta_1 + l_2\sin(\theta_1 + \theta_2)
-]
-```
+$$
 
 Important consequences:
 
@@ -109,11 +87,9 @@ Important consequences:
 
 Real joints are limited:
 
-```math
-[
+$$
 \theta_i^{min} \le \theta_i \le \theta_i^{max}
-]
-```
+$$
 
 For a 2‑DOF arm:
 
@@ -147,21 +123,14 @@ Even a simple circular obstacle can carve out complex forbidden regions.
 
 ## 6. Free Space vs Forbidden Space
 
-C‑space is split into two sets:
+C-space is split into two sets:
 
-```math
-* **(\mathcal{C}_{free})** — collision‑free configurations
-```
-```math
-* **(\mathcal{C}_{obs})** — configurations in collision
-```
+* $\mathcal{C}_{free}$ — collision-free configurations
+* $\mathcal{C}_{obs}$ — configurations in collision
 
 Planning is simply:
 
-Find a continuous path through:
-```math
-(\mathcal{C}_{free})
-```
+> Find a continuous path through $\mathcal{C}_{free}$
 
 Nothing more. Nothing less.
 
@@ -250,10 +219,10 @@ Now that we understand C‑space, the next questions are natural:
 2. How do we mark forbidden regions? (Collision checking)
 3. How do we move through free space? (Path planning)
 
-Raad more here:
+Read more here:
 
 [Configuration Space - Tufts University](https://www.cs.tufts.edu/comp/150IR/hw/cspace.html)
 
 Continue with:
 
-👉 [Inverse Kinematics (IK) vs Motion Planning](`docs/02_ik_vs_planning.md`)
+[Inverse Kinematics (IK) vs Motion Planning](02_ik_vs_planning.md)

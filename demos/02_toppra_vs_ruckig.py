@@ -13,7 +13,7 @@ from core.state_space import JointStateSpace
 from core.collision_manager import NullCollisionManager
 from planners.ompl_rrt import OMPLRRTPlanner
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
-from parameterization.rucking_parameterization import RuckigTimeParameterizer
+from parameterization.ruckig_parameterization import RuckigTimeParameterizer
 
 # ---------------------------
 # 1. Robot setup
