@@ -8,6 +8,8 @@ This demo shows how to visualize:
 3. Phase portraits
 4. Robot arm configurations and animations
 
+Plots are shown interactively one by one. Close each plot window to see the next.
+
 Run with: python demos/05_visualization_demo.py
 """
 
@@ -43,11 +45,12 @@ def main():
     print("=" * 60)
     print("ARM PLANNING VISUALIZATION DEMO")
     print("=" * 60)
+    print("\nClose each plot window to see the next visualization.\n")
 
     # ---------------------------
     # 1. Setup robot and plan path
     # ---------------------------
-    print("\n[1] Setting up robot and planning path...")
+    print("[1] Setting up robot and planning path...")
 
     robot = UR5RobotModel()
     collision_manager = NullCollisionManager()
@@ -66,7 +69,7 @@ def main():
         print("ERROR: No path found!")
         return
 
-    print(f"   Path found with {len(path)} waypoints")
+    print(f"    Path found with {len(path)} waypoints")
 
     # ---------------------------
     # 2. Time-parameterize with both TOPP-RA and Ruckig
@@ -75,39 +78,38 @@ def main():
 
     dof = robot.dof()
     v_max = np.ones(dof) * 1.5  # rad/s
-    a_max = np.ones(dof) * 3.0  # rad/s²
-    j_max = np.ones(dof) * 10.0  # rad/s³
+    a_max = np.ones(dof) * 3.0  # rad/s^2
+    j_max = np.ones(dof) * 10.0  # rad/s^3
 
     # TOPP-RA
     toppra = ToppraTimeParameterizer(v_max, a_max)
     time_toppra, traj_toppra = toppra.compute(path)
-    print(f"   TOPP-RA: {time_toppra[-1]:.3f}s duration, {len(time_toppra)} samples")
+    print(f"    TOPP-RA: {time_toppra[-1]:.3f}s duration, {len(time_toppra)} samples")
 
     # Ruckig
     ruckig = RuckigTimeParameterizer(v_max, a_max, j_max)
     time_ruckig, traj_ruckig = ruckig.compute(path)
-    print(f"   Ruckig:  {time_ruckig[-1]:.3f}s duration, {len(time_ruckig)} samples")
-
-    # ---------------------------
-    # 3. Joint-space visualization
-    # ---------------------------
-    print("\n[3] Creating joint-space plots...")
+    print(f"    Ruckig:  {time_ruckig[-1]:.3f}s duration, {len(time_ruckig)} samples")
 
     joint_names = ["Base", "Shoulder", "Elbow", "Wrist 1", "Wrist 2", "Wrist 3"]
+    visualizer = RobotVisualizer()
 
-    # Joint trajectory
-    print("   - Joint trajectory plot")
+    # ---------------------------
+    # 3. Show plots one by one
+    # ---------------------------
+    print("\n[3] Displaying visualizations (close each window to continue)...\n")
+
+    # Plot 1: Joint trajectory
+    print("    [1/10] Joint Trajectory (TOPP-RA)")
     plot_joint_trajectory(
         time_toppra, traj_toppra,
         joint_names=joint_names,
         title="TOPP-RA Joint Trajectory",
-        show=False
+        show=True
     )
-    plt.savefig("joint_trajectory.png", dpi=150)
-    plt.close()
 
-    # Comparison plot
-    print("   - TOPP-RA vs Ruckig comparison")
+    # Plot 2: Comparison
+    print("    [2/10] TOPP-RA vs Ruckig Comparison")
     plot_joint_comparison(
         time_toppra, traj_toppra,
         time_ruckig, traj_ruckig,
@@ -115,120 +117,80 @@ def main():
         label_2="Ruckig",
         joint_names=joint_names,
         title="TOPP-RA vs Ruckig Trajectory Comparison",
-        show=False
+        show=True
     )
-    plt.savefig("trajectory_comparison.png", dpi=150)
-    plt.close()
 
-    # Velocity profile
-    print("   - Velocity profile with limits")
+    # Plot 3: Velocity profile
+    print("    [3/10] Velocity Profile with Limits")
     plot_velocity_profile(
         time_toppra, traj_toppra,
         v_max=v_max,
         joint_names=joint_names,
-        title="TOPP-RA Velocity Profile",
-        show=False
+        title="TOPP-RA Velocity Profile (green = within limits)",
+        show=True
     )
-    plt.savefig("velocity_profile.png", dpi=150)
-    plt.close()
 
-    # Acceleration profile
-    print("   - Acceleration profile with limits")
+    # Plot 4: Acceleration profile
+    print("    [4/10] Acceleration Profile with Limits")
     plot_acceleration_profile(
         time_toppra, traj_toppra,
         a_max=a_max,
         joint_names=joint_names,
-        title="TOPP-RA Acceleration Profile",
-        show=False
+        title="TOPP-RA Acceleration Profile (green = within limits)",
+        show=True
     )
-    plt.savefig("acceleration_profile.png", dpi=150)
-    plt.close()
 
-    # Phase portrait
-    print("   - Phase portrait")
+    # Plot 5: Phase portrait
+    print("    [5/10] Phase Portrait (Velocity vs Position)")
     plot_phase_portrait(
         time_toppra, traj_toppra,
         joint_indices=[0, 1, 2],  # First 3 joints
         joint_names=joint_names,
-        title="Phase Portrait (Velocity vs Position)",
-        show=False
+        title="Phase Portrait - First 3 Joints",
+        show=True
     )
-    plt.savefig("phase_portrait.png", dpi=150)
-    plt.close()
 
-    # ---------------------------
-    # 4. 3D end-effector visualization
-    # ---------------------------
-    print("\n[4] Creating 3D end-effector plots...")
-
-    # 3D path
-    print("   - End-effector 3D path")
+    # Plot 6: 3D end-effector path
+    print("    [6/10] End-Effector 3D Path")
     plot_ee_path_3d(
         traj_toppra,
         robot.fk,
         title="End-Effector Path in 3D Space",
-        show=False
+        show=True
     )
-    plt.savefig("ee_path_3d.png", dpi=150)
-    plt.close()
 
-    # Path vs trajectory comparison
-    print("   - Path waypoints vs trajectory")
+    # Plot 7: Path waypoints vs trajectory
+    print("    [7/10] Path Waypoints vs Smooth Trajectory")
     plot_ee_path_with_waypoints(
         path, traj_toppra, robot.fk,
-        title="Path Waypoints vs Smooth Trajectory",
-        show=False
+        title="Path Waypoints (orange) vs Smooth Trajectory (blue)",
+        show=True
     )
-    plt.savefig("ee_path_waypoints.png", dpi=150)
-    plt.close()
 
-    # EE components over time
-    print("   - End-effector X/Y/Z over time")
+    # Plot 8: EE components over time
+    print("    [8/10] End-Effector X/Y/Z over Time")
     plot_ee_components(
         time_toppra, traj_toppra, robot.fk,
         title="End-Effector Position Components",
-        show=False
+        show=True
     )
-    plt.savefig("ee_components.png", dpi=150)
-    plt.close()
 
-    # ---------------------------
-    # 5. Robot arm visualization
-    # ---------------------------
-    print("\n[5] Creating robot arm visualizations...")
-
-    visualizer = RobotVisualizer()
-
-    # Single configuration
-    print("   - Start configuration")
+    # Plot 9: Robot start configuration
+    print("    [9/10] Robot Start Configuration")
     visualizer.plot_configuration(
         q_start,
         title="Start Configuration",
-        show=False
+        show=True
     )
-    plt.savefig("robot_start.png", dpi=150)
-    plt.close()
 
-    # Goal configuration
-    print("   - Goal configuration")
-    visualizer.plot_configuration(
-        q_goal,
-        title="Goal Configuration",
-        show=False
-    )
-    plt.savefig("robot_goal.png", dpi=150)
-    plt.close()
-
-    # Trajectory snapshots
-    print("   - Trajectory snapshots")
+    # Plot 10: Trajectory snapshots
+    print("    [10/10] Trajectory Snapshots")
     visualizer.plot_trajectory_snapshots(
         traj_toppra,
         n_snapshots=7,
-        title="Trajectory Motion",
-        show=False
+        title="Trajectory Motion (green=start, red=end)",
+        show=True
     )
-    plt.savefig("trajectory_snapshots.png", dpi=150)
-    plt.close()
 
     # ---------------------------
     # Summary
@@ -236,24 +198,13 @@ def main():
     print("\n" + "=" * 60)
     print("VISUALIZATION COMPLETE")
     print("=" * 60)
-    print("\nGenerated files:")
-    print("  - joint_trajectory.png")
-    print("  - trajectory_comparison.png")
-    print("  - velocity_profile.png")
-    print("  - acceleration_profile.png")
-    print("  - phase_portrait.png")
-    print("  - ee_path_3d.png")
-    print("  - ee_path_waypoints.png")
-    print("  - ee_components.png")
-    print("  - robot_start.png")
-    print("  - robot_goal.png")
-    print("  - trajectory_snapshots.png")
 
-    print("\nTo create an animation, use:")
+    print("\nTo create an animation, run:")
     print("  from visualization import animate_trajectory, RobotVisualizer")
+    print("  import matplotlib.pyplot as plt")
     print("  viz = RobotVisualizer()")
-    print("  anim = animate_trajectory(trajectory, viz, save_path='robot_anim.gif')")
-    print("  plt.show()")
+    print("  anim = animate_trajectory(trajectory, viz)")
+    print("  plt.show()  # Or save with save_path='robot.gif'")
 
 
 if __name__ == "__main__":
