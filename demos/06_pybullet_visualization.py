@@ -7,7 +7,7 @@ for realistic 3D rendering with proper physics and lighting.
 
 Features demonstrated:
 - Proper UR5 model with correct kinematics
-- IK-based goal pose specification
+- IK-based goal pose specification with automatic retry
 - Obstacle avoidance planning using PyBullet's collision detection
 - Path smoothing for natural robot motion
 - Trajectory visualization with end-effector trail
@@ -39,8 +39,14 @@ UR5_VELOCITY_LIMITS = np.array([3.15, 3.15, 3.15, 3.2, 3.2, 3.2])  # rad/s
 UR5_ACCEL_LIMITS = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0])  # rad/s^2
 
 
+def is_within_joint_limits(q: np.ndarray, robot) -> bool:
+    """Check if joint configuration is within robot joint limits."""
+    lower, upper = robot.joint_limits()
+    return np.all(q >= lower) and np.all(q <= upper)
+
+
 def create_workspace_obstacles(viz):
-    """Create floor and walls to constrain the workspace."""
+    """Create floor to constrain the workspace."""
     obstacle_ids = []
 
     # Floor
@@ -56,26 +62,21 @@ def create_workspace_obstacles(viz):
 
 def find_valid_goal(
     ik_solver: IKSolver,
+    robot,
     reference_q: np.ndarray,
     reference_rotation: np.ndarray,
     collision_check,
     workspace_bounds: dict,
-    max_attempts: int = 50,
+    max_attempts: int = 100,
 ) -> tuple:
     """
     Find a random collision-free goal pose within workspace bounds.
 
-    Args:
-        ik_solver: IKSolver instance
-        reference_q: Reference joint configuration
-        reference_rotation: Desired end-effector orientation
-        collision_check: Collision checking function
-        workspace_bounds: Dict with 'x', 'y', 'z' ranges as (min, max) tuples
-        max_attempts: Maximum attempts to find valid goal
-
     Returns:
         (q_goal, goal_position) or (None, None) if not found
     """
+    lower, upper = robot.joint_limits()
+
     for attempt in range(max_attempts):
         # Random position within workspace
         x = np.random.uniform(*workspace_bounds['x'])
@@ -91,10 +92,123 @@ def find_valid_goal(
             collision_check=collision_check,
         )
 
-        if q_goal is not None and not collision_check(q_goal):
-            return q_goal, position
+        if q_goal is None:
+            continue
+
+        # Explicitly check joint limits
+        if not is_within_joint_limits(q_goal, robot):
+            continue
+
+        # Check collision
+        if collision_check(q_goal):
+            continue
+
+        return q_goal, position
 
     return None, None
+
+
+def show_debug_markers(viz, q_start, q_goal, goal_position):
+    """Show start and goal markers for debugging."""
+    # Show start
+    viz.set_joint_positions(q_start)
+    start_ee, _ = viz.get_end_effector_pose()
+    viz.add_marker(tuple(start_ee), color=(0, 1, 0), size=0.04)  # Green
+
+    # Show goal
+    if q_goal is not None:
+        viz.set_joint_positions(q_goal)
+        goal_ee, _ = viz.get_end_effector_pose()
+        viz.add_marker(tuple(goal_ee), color=(1, 0, 0), size=0.04)  # Red
+    elif goal_position is not None:
+        # Show target position even if IK failed
+        viz.add_marker(tuple(goal_position), color=(1, 0.5, 0), size=0.04)  # Orange
+
+    # Return to start
+    viz.set_joint_positions(q_start)
+
+
+def run_planning_attempt(viz, robot, ik_solver, state_space, obstacle_ids, attempt_num):
+    """
+    Run a single planning attempt. Returns trajectory data or None on failure.
+    """
+    print(f"\n--- Attempt {attempt_num} ---")
+
+    # Create collision checker
+    pybullet_collision_check = viz.create_collision_checker(obstacle_ids)
+    robot.in_collision = pybullet_collision_check
+
+    # Start configuration
+    q_start = np.array([0.0, -np.pi/4, np.pi/2, -np.pi/4, np.pi/2, 0.0])
+
+    # Check if start is valid
+    if pybullet_collision_check(q_start):
+        print("    Start in collision, trying alternative...")
+        q_start = np.array([0.0, -np.pi/3, np.pi/3, -np.pi/2, np.pi/2, 0.0])
+        if pybullet_collision_check(q_start):
+            print("    Alternative start also in collision!")
+            return None
+
+    # Get start EE pose for reference
+    start_pose = robot.fk(q_start)
+    start_rotation = start_pose[:3, :3]
+
+    # Workspace bounds - keep positions reachable
+    workspace = {
+        'x': (-0.2, 0.4),
+        'y': (-0.3, 0.3),
+        'z': (0.25, 0.65),
+    }
+
+    # Find valid goal
+    print("    Searching for valid goal...")
+    q_goal, goal_position = find_valid_goal(
+        ik_solver, robot, q_start, start_rotation,
+        pybullet_collision_check, workspace,
+        max_attempts=100,
+    )
+
+    if q_goal is None:
+        print("    Could not find valid goal pose!")
+        show_debug_markers(viz, q_start, None, None)
+        return None
+
+    # Validate goal is within joint limits
+    lower, upper = robot.joint_limits()
+    if not is_within_joint_limits(q_goal, robot):
+        print(f"    Goal outside joint limits!")
+        for i in range(len(q_goal)):
+            if q_goal[i] < lower[i] or q_goal[i] > upper[i]:
+                print(f"      Joint {i}: {q_goal[i]:.3f} not in [{lower[i]:.3f}, {upper[i]:.3f}]")
+        show_debug_markers(viz, q_start, q_goal, goal_position)
+        return None
+
+    print(f"    Start: {np.round(q_start, 2)}")
+    print(f"    Goal:  {np.round(q_goal, 2)}")
+    print(f"    Goal pos: [{goal_position[0]:.2f}, {goal_position[1]:.2f}, {goal_position[2]:.2f}]")
+
+    # Show markers before planning
+    show_debug_markers(viz, q_start, q_goal, goal_position)
+
+    # Plan path
+    print("    Planning path...")
+    planner = OMPLRRTConnectPlanner(state_space, step_size=0.05)
+    path = planner.plan(q_start, q_goal, timeout=5.0)
+
+    if path is None:
+        print("    Planning failed!")
+        time.sleep(1.0)  # Show the failed attempt briefly
+        return None
+
+    print(f"    Path found: {len(path)} waypoints")
+
+    return {
+        'q_start': q_start,
+        'q_goal': q_goal,
+        'goal_position': goal_position,
+        'path': path,
+        'collision_check': pybullet_collision_check,
+    }
 
 
 def main():
@@ -112,6 +226,12 @@ def main():
     opw_kin = OPWKinematics(robot, opw_params)
     ik_solver = IKSolver(robot, opw_kin)
 
+    # Print joint limits for reference
+    lower, upper = robot.joint_limits()
+    print("    Joint limits (rad):")
+    for i in range(6):
+        print(f"      J{i+1}: [{lower[i]:.2f}, {upper[i]:.2f}]")
+
     # ---------------------------
     # 2. Create visualizer and obstacles
     # ---------------------------
@@ -128,13 +248,13 @@ def main():
     # Add workspace constraints
     obstacle_ids = create_workspace_obstacles(viz)
 
-    # Add a random obstacle between where start and goal might be
+    # Add a random obstacle
     obstacle_center = np.array([
-        np.random.uniform(-0.2, 0.4),
-        np.random.uniform(-0.2, 0.4),
-        np.random.uniform(0.3, 0.7),
+        np.random.uniform(0.0, 0.3),
+        np.random.uniform(-0.2, 0.2),
+        np.random.uniform(0.3, 0.5),
     ])
-    obstacle_size = (0.12, 0.12, 0.20)
+    obstacle_size = (0.10, 0.10, 0.15)
 
     obstacle_id = viz.add_box(
         center=tuple(obstacle_center),
@@ -146,73 +266,44 @@ def main():
     print(f"    Obstacle at: [{obstacle_center[0]:.2f}, {obstacle_center[1]:.2f}, {obstacle_center[2]:.2f}]")
 
     # ---------------------------
-    # 3. Setup collision-aware planning
+    # 3. Setup state space
     # ---------------------------
-    print("\n[3] Setting up collision-aware planning...")
+    print("\n[3] Setting up planning...")
 
-    pybullet_collision_check = viz.create_collision_checker(obstacle_ids)
-    robot.in_collision = pybullet_collision_check
     state_space = JointStateSpace(robot)
 
     # ---------------------------
-    # 4. Define start and goal poses
+    # 4. Try planning with automatic retry
     # ---------------------------
-    print("\n[4] Computing start and goal configurations...")
+    print("\n[4] Finding valid start/goal and planning...")
 
-    # Start configuration (known valid pose)
-    q_start = np.array([0.0, -np.pi/4, np.pi/2, -np.pi/4, np.pi/2, 0.0])
+    max_retries = 10
+    result = None
 
-    # Verify start is collision-free
-    if pybullet_collision_check(q_start):
-        print("    WARNING: Start in collision, trying alternative...")
-        q_start = np.array([0.0, -np.pi/3, np.pi/3, -np.pi/2, np.pi/2, 0.0])
+    for attempt in range(1, max_retries + 1):
+        result = run_planning_attempt(viz, robot, ik_solver, state_space, obstacle_ids, attempt)
+        if result is not None:
+            print(f"\n    Success on attempt {attempt}!")
+            break
+        print(f"    Retrying... ({attempt}/{max_retries})")
 
-    # Get start EE pose for reference orientation
-    start_pose = robot.fk(q_start)
-    start_rotation = start_pose[:3, :3]
-
-    # Workspace bounds for goal search
-    workspace = {
-        'x': (-0.3, 0.5),
-        'y': (-0.4, 0.4),
-        'z': (0.2, 0.8),
-    }
-
-    # Find collision-free goal
-    print("    Searching for valid goal pose...")
-    q_goal, goal_position = find_valid_goal(
-        ik_solver, q_start, start_rotation,
-        pybullet_collision_check, workspace,
-    )
-
-    if q_goal is None:
-        print("ERROR: Could not find valid goal pose!")
+    if result is None:
+        print(f"\nERROR: Failed after {max_retries} attempts!")
+        print("    Try running again - random obstacles may be in a better position.")
+        time.sleep(3.0)
         viz.close()
         return
 
-    print(f"    Start: {np.round(q_start, 3)}")
-    print(f"    Goal:  {np.round(q_goal, 3)}")
-    print(f"    Goal position: [{goal_position[0]:.2f}, {goal_position[1]:.2f}, {goal_position[2]:.2f}]")
+    # Extract results
+    q_start = result['q_start']
+    q_goal = result['q_goal']
+    path = result['path']
+    pybullet_collision_check = result['collision_check']
 
     # ---------------------------
-    # 5. Plan path
+    # 5. Smooth path
     # ---------------------------
-    print("\n[5] Planning collision-free path...")
-
-    planner = OMPLRRTConnectPlanner(state_space, step_size=0.05)
-    path = planner.plan(q_start, q_goal, timeout=10.0)
-
-    if path is None:
-        print("ERROR: No path found!")
-        viz.close()
-        return
-
-    print(f"    Raw path: {len(path)} waypoints")
-
-    # ---------------------------
-    # 6. Smooth path
-    # ---------------------------
-    print("\n[6] Smoothing path...")
+    print("\n[5] Smoothing path...")
 
     smoothed_path = smooth_path(
         path,
@@ -228,39 +319,28 @@ def main():
         print(f"    WARNING: {collisions} collisions in smoothed path, using original")
         smoothed_path = np.array(path)
     else:
-        print(f"    Smoothed path: {len(smoothed_path)} points (collision-free)")
+        print(f"    Smoothed: {len(smoothed_path)} points")
 
     path = list(smoothed_path)
 
     # ---------------------------
-    # 7. Time-parameterize
+    # 6. Time-parameterize
     # ---------------------------
-    print("\n[7] Time-parameterizing trajectory...")
+    print("\n[6] Time-parameterizing...")
 
     toppra = ToppraTimeParameterizer(UR5_VELOCITY_LIMITS, UR5_ACCEL_LIMITS)
     time_stamps, trajectory = toppra.compute(path)
 
-    print(f"    Duration: {time_stamps[-1]:.2f}s")
-    print(f"    Samples: {len(trajectory)}")
+    print(f"    Duration: {time_stamps[-1]:.2f}s, Samples: {len(trajectory)}")
 
     # ---------------------------
-    # 8. Visualize
+    # 7. Visualize
     # ---------------------------
-    print("\n[8] Visualizing...")
+    print("\n[7] Visualizing...")
     print("    Controls: Mouse=rotate, Scroll=zoom, Q=quit")
 
     # Show start
     viz.visualize_configuration(q_start, duration=1.0)
-
-    # Add markers
-    start_ee, _ = viz.get_end_effector_pose()
-    viz.add_marker(tuple(start_ee), color=(0, 1, 0), size=0.03)
-
-    viz.set_joint_positions(q_goal)
-    goal_ee, _ = viz.get_end_effector_pose()
-    viz.add_marker(tuple(goal_ee), color=(1, 0, 0), size=0.03)
-
-    viz.visualize_configuration(q_start, duration=0.5)
 
     # Show path preview
     print("\n    Showing path preview...")
@@ -284,7 +364,7 @@ def main():
     )
 
     # Hold final pose
-    print("\n    Done! Holding final pose for 3s...")
+    print("\n    Done! Holding final pose...")
     viz.visualize_configuration(trajectory[-1], duration=3.0)
 
     viz.close()
