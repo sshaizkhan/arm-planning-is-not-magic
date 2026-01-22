@@ -21,6 +21,7 @@ import time
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
 from core.collision_manager import NullCollisionManager
+from core.path_smoothing import smooth_path
 from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
 
@@ -117,19 +118,39 @@ def main():
         viz.close()
         return
 
-    print(f"    Path found with {len(path)} waypoints")
+    print(f"    Raw path found with {len(path)} waypoints")
 
-    # Verify path is collision-free
-    collisions = sum(1 for q in path if pybullet_collision_check(q))
+    # ---------------------------
+    # 5. Smooth the path
+    # ---------------------------
+    print("\n[5] Smoothing path...")
+
+    # Apply shortcut + spline smoothing
+    smoothed_path = smooth_path(
+        path,
+        collision_check=pybullet_collision_check,
+        shortcut_iterations=100,  # Remove unnecessary waypoints
+        spline_points=150,        # Smooth curve with 150 points
+        step_size=0.02,
+    )
+
+    print(f"    Smoothed path: {len(smoothed_path)} points")
+
+    # Verify smoothed path is collision-free
+    collisions = sum(1 for q in smoothed_path if pybullet_collision_check(q))
     if collisions > 0:
-        print(f"    WARNING: Path has {collisions} collisions!")
+        print(f"    WARNING: Smoothed path has {collisions} collisions, using original")
+        smoothed_path = np.array(path)
     else:
-        print("    Path verified collision-free!")
+        print("    Smoothed path verified collision-free!")
+
+    # Use smoothed path for visualization and execution
+    path = [smoothed_path[i] for i in range(len(smoothed_path))]
 
     # ---------------------------
-    # 5. Time-parameterize path
+    # 6. Time-parameterize path
     # ---------------------------
-    print("\n[5] Time-parameterizing path...")
+    print("\n[6] Time-parameterizing path...")
 
     dof = robot.dof()
     v_max = np.ones(dof) * 1.5
@@ -140,9 +161,9 @@ def main():
     print(f"    Trajectory: {time_stamps[-1]:.3f}s duration, {len(time_stamps)} samples")
 
     # ---------------------------
-    # 6. Visualize
+    # 7. Visualize
     # ---------------------------
-    print("\n[6] Visualizing...")
+    print("\n[7] Visualizing...")
     print("    Controls:")
     print("    - Mouse: Rotate camera")
     print("    - Scroll: Zoom")
