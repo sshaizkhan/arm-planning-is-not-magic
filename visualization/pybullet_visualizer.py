@@ -644,6 +644,116 @@ class PyBulletVisualizer:
             cameraTargetPosition=target,
         )
 
+    def add_box(
+        self,
+        center: Tuple[float, float, float],
+        size: Tuple[float, float, float],
+        color: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.7),
+    ) -> int:
+        """
+        Add a box obstacle to the scene.
+
+        Args:
+            center: (x, y, z) center position
+            size: (width, depth, height) dimensions
+            color: RGBA color (0-1), default semi-transparent red
+
+        Returns:
+            PyBullet body ID for the obstacle
+        """
+        visual_shape = p.createVisualShape(
+            p.GEOM_BOX,
+            halfExtents=[s / 2 for s in size],
+            rgbaColor=color,
+        )
+        collision_shape = p.createCollisionShape(
+            p.GEOM_BOX,
+            halfExtents=[s / 2 for s in size],
+        )
+        body_id = p.createMultiBody(
+            baseMass=0,  # Static object
+            baseCollisionShapeIndex=collision_shape,
+            baseVisualShapeIndex=visual_shape,
+            basePosition=center,
+        )
+        return body_id
+
+    def add_sphere(
+        self,
+        center: Tuple[float, float, float],
+        radius: float,
+        color: Tuple[float, float, float, float] = (0.0, 1.0, 0.0, 0.7),
+    ) -> int:
+        """
+        Add a sphere obstacle to the scene.
+
+        Args:
+            center: (x, y, z) center position
+            radius: Sphere radius
+            color: RGBA color (0-1), default semi-transparent green
+
+        Returns:
+            PyBullet body ID for the obstacle
+        """
+        visual_shape = p.createVisualShape(
+            p.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=color,
+        )
+        collision_shape = p.createCollisionShape(
+            p.GEOM_SPHERE,
+            radius=radius,
+        )
+        body_id = p.createMultiBody(
+            baseMass=0,
+            baseCollisionShapeIndex=collision_shape,
+            baseVisualShapeIndex=visual_shape,
+            basePosition=center,
+        )
+        return body_id
+
+    def add_cylinder(
+        self,
+        center: Tuple[float, float, float],
+        radius: float,
+        height: float,
+        color: Tuple[float, float, float, float] = (0.0, 0.0, 1.0, 0.7),
+    ) -> int:
+        """
+        Add a cylinder obstacle to the scene (vertical, along Z axis).
+
+        Args:
+            center: (x, y, z) center position
+            radius: Cylinder radius
+            height: Cylinder height
+            color: RGBA color (0-1), default semi-transparent blue
+
+        Returns:
+            PyBullet body ID for the obstacle
+        """
+        visual_shape = p.createVisualShape(
+            p.GEOM_CYLINDER,
+            radius=radius,
+            length=height,
+            rgbaColor=color,
+        )
+        collision_shape = p.createCollisionShape(
+            p.GEOM_CYLINDER,
+            radius=radius,
+            height=height,
+        )
+        body_id = p.createMultiBody(
+            baseMass=0,
+            baseCollisionShapeIndex=collision_shape,
+            baseVisualShapeIndex=visual_shape,
+            basePosition=center,
+        )
+        return body_id
+
+    def remove_body(self, body_id: int):
+        """Remove a body (obstacle) from the scene."""
+        p.removeBody(body_id)
+
     def close(self):
         """Close PyBullet connection."""
         p.disconnect(self.client_id)

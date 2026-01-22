@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Demo 06: PyBullet 3D Visualization.
+Demo 06: PyBullet 3D Visualization with Obstacle Avoidance.
 
 This demo shows how to visualize robot arm trajectories using PyBullet
 for realistic 3D rendering with proper physics and lighting.
 
 Features demonstrated:
 - Proper UR5 model with correct kinematics
+- Obstacle avoidance planning (robot avoids a box obstacle)
 - Path preview (showing planned waypoints as a line before execution)
 - Trajectory visualization with end-effector trail
 - Interactive camera controls
@@ -18,7 +19,7 @@ import numpy as np
 
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import NullCollisionManager
+from core.collision_manager import ShapeCollisionManager, Box
 from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
 
@@ -31,37 +32,74 @@ except ImportError:
 
 def main():
     print("=" * 60)
-    print("PYBULLET 3D VISUALIZATION DEMO")
+    print("PYBULLET 3D VISUALIZATION WITH OBSTACLE AVOIDANCE")
     print("=" * 60)
 
     # ---------------------------
-    # 1. Setup robot and plan path
+    # 1. Setup robot
     # ---------------------------
-    print("\n[1] Setting up robot and planning path...")
+    print("\n[1] Setting up robot...")
 
     robot = UR5RobotModel()
-    collision_manager = NullCollisionManager()
-    robot.set_collision_manager(collision_manager)
-    state_space = JointStateSpace(robot)
 
     # Define start and goal configurations
     q_start = np.array([0.0, -np.pi/4, np.pi/3, -np.pi/2, np.pi/4, 0.0])
     q_goal = np.array([np.pi/2, -np.pi/3, np.pi/4, -np.pi/4, -np.pi/4, np.pi/2])
 
-    # Plan path
-    planner = OMPLRRTConnectPlanner(state_space, step_size=0.1)
-    path = planner.plan(q_start, q_goal, timeout=3.0)
+    # Get EE positions for start and goal to place obstacle between them
+    start_pose = robot.fk(q_start)
+    goal_pose = robot.fk(q_goal)
+    start_ee = start_pose[:3, 3]
+    goal_ee = goal_pose[:3, 3]
+
+    print(f"    Start EE position: [{start_ee[0]:.3f}, {start_ee[1]:.3f}, {start_ee[2]:.3f}]")
+    print(f"    Goal EE position:  [{goal_ee[0]:.3f}, {goal_ee[1]:.3f}, {goal_ee[2]:.3f}]")
+
+    # ---------------------------
+    # 2. Add obstacle between start and goal
+    # ---------------------------
+    print("\n[2] Adding obstacle between start and goal...")
+
+    # Place obstacle roughly between start and goal EE positions
+    obstacle_center = (start_ee + goal_ee) / 2
+    obstacle_center[2] += 0.05  # Raise it slightly
+    obstacle_size = np.array([0.15, 0.15, 0.25])  # Box dimensions
+
+    print(f"    Obstacle center: [{obstacle_center[0]:.3f}, {obstacle_center[1]:.3f}, {obstacle_center[2]:.3f}]")
+    print(f"    Obstacle size: {obstacle_size[0]:.2f} x {obstacle_size[1]:.2f} x {obstacle_size[2]:.2f}")
+
+    # Setup collision manager with the obstacle
+    collision_manager = ShapeCollisionManager(robot)
+    collision_manager.add_shape(Box(obstacle_center, obstacle_size))
+    robot.set_collision_manager(collision_manager)
+
+    state_space = JointStateSpace(robot)
+
+    # ---------------------------
+    # 3. Plan path avoiding obstacle
+    # ---------------------------
+    print("\n[3] Planning collision-free path...")
+
+    planner = OMPLRRTConnectPlanner(state_space, step_size=0.05)
+    path = planner.plan(q_start, q_goal, timeout=5.0)
 
     if path is None:
-        print("ERROR: No path found!")
+        print("ERROR: No path found! Try adjusting obstacle position or size.")
         return
 
     print(f"    Path found with {len(path)} waypoints")
 
+    # Verify path is collision-free
+    collisions = sum(1 for q in path if collision_manager.in_collision(q))
+    if collisions > 0:
+        print(f"    WARNING: Path has {collisions} collisions!")
+    else:
+        print("    Path verified collision-free!")
+
     # ---------------------------
-    # 2. Time-parameterize path
+    # 4. Time-parameterize path
     # ---------------------------
-    print("\n[2] Time-parameterizing path...")
+    print("\n[4] Time-parameterizing path...")
 
     dof = robot.dof()
     v_max = np.ones(dof) * 1.5  # rad/s
@@ -72,9 +110,9 @@ def main():
     print(f"    Trajectory: {time_stamps[-1]:.3f}s duration, {len(time_stamps)} samples")
 
     # ---------------------------
-    # 3. Visualize with PyBullet
+    # 5. Visualize with PyBullet
     # ---------------------------
-    print("\n[3] Starting PyBullet visualization...")
+    print("\n[5] Starting PyBullet visualization...")
     print("    Controls:")
     print("    - Mouse: Rotate camera")
     print("    - Scroll: Zoom")
@@ -87,9 +125,17 @@ def main():
         camera_yaw=50,
         camera_pitch=-25,
     ) as viz:
+        # Add the obstacle to the visualization (semi-transparent red box)
+        print("\n    Adding obstacle to scene...")
+        viz.add_box(
+            center=tuple(obstacle_center),
+            size=tuple(obstacle_size),
+            color=(0.9, 0.2, 0.2, 0.6),  # Semi-transparent red
+        )
+
         # Show start configuration
-        print("\n    Showing start configuration...")
-        viz.visualize_configuration(q_start, duration=1.5)
+        print("    Showing start configuration...")
+        viz.visualize_configuration(q_start, duration=1.0)
 
         # Add markers for start and goal end-effector positions
         start_ee_pos, _ = viz.get_end_effector_pose()
@@ -106,7 +152,7 @@ def main():
         # ---------------------------
         # Show planned path preview
         # ---------------------------
-        print("\n    Showing planned path preview (orange line)...")
+        print("\n    Showing planned path (orange) - notice it avoids the obstacle...")
         viz.visualize_path(
             path,
             fk_func=robot.fk,
@@ -119,7 +165,7 @@ def main():
 
         # Let user see the planned path
         import time
-        time.sleep(2.0)
+        time.sleep(3.0)
 
         # ---------------------------
         # Show smooth trajectory preview
