@@ -8,10 +8,11 @@ Requirements:
     pybullet>=3.2.0
 """
 
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Callable
 import numpy as np
 import tempfile
 import os
+from pathlib import Path
 
 try:
     import pybullet as p
@@ -19,6 +20,15 @@ try:
     PYBULLET_AVAILABLE = True
 except ImportError:
     PYBULLET_AVAILABLE = False
+
+
+def get_default_ur5_urdf() -> str:
+    """Get path to the default UR5 URDF file included with this package."""
+    module_dir = Path(__file__).parent.parent
+    urdf_path = module_dir / "robots" / "ur5" / "ur5.urdf"
+    if urdf_path.exists():
+        return str(urdf_path)
+    return None
 
 
 class PyBulletVisualizer:
@@ -78,15 +88,24 @@ class PyBulletVisualizer:
         )
 
         # Load robot
+        # Priority: 1) explicit urdf_path, 2) default UR5 URDF, 3) simple generated model
         if urdf_path and os.path.exists(urdf_path):
+            actual_urdf_path = urdf_path
+        else:
+            actual_urdf_path = get_default_ur5_urdf()
+
+        if actual_urdf_path and os.path.exists(actual_urdf_path):
             self.robot_id = p.loadURDF(
-                urdf_path,
+                actual_urdf_path,
                 basePosition=base_position,
                 baseOrientation=[0, 0, 0, 1],
                 useFixedBase=True,
             )
         else:
             self.robot_id = self._create_simple_ur5_model()
+
+        # Track debug line IDs for cleanup
+        self._path_line_ids = []
 
         # Get joint info
         self.joint_indices = []
@@ -444,6 +463,149 @@ class PyBulletVisualizer:
             lineWidth=3,
             lifeTime=lifetime,
         )
+
+    def visualize_path(
+        self,
+        path: np.ndarray,
+        fk_func: Optional[Callable] = None,
+        color: Tuple[float, float, float] = (1.0, 0.5, 0.0),
+        line_width: float = 3,
+        show_waypoints: bool = True,
+        waypoint_color: Tuple[float, float, float] = (1.0, 0.0, 0.0),
+        waypoint_size: float = 0.015,
+        lifetime: float = 0,
+    ):
+        """
+        Visualize a planned path as a 3D line showing the end-effector trajectory.
+
+        This displays the path waypoints BEFORE trajectory execution, useful for
+        previewing where the end-effector will travel.
+
+        Args:
+            path: Joint space path, shape (N, 6) - the waypoints from planner
+            fk_func: Forward kinematics function. If None, uses PyBullet's FK.
+                     Should take joint angles and return (position, rotation_matrix)
+            color: RGB color for the path line (0-1)
+            line_width: Width of the path line
+            show_waypoints: If True, show markers at each waypoint
+            waypoint_color: RGB color for waypoint markers
+            waypoint_size: Size of waypoint markers
+            lifetime: How long path persists (0 = forever)
+
+        Returns:
+            List of debug line IDs (for manual cleanup if needed)
+        """
+        # Clear previous path visualization
+        self.clear_path()
+
+        if len(path) < 2:
+            return []
+
+        ee_positions = []
+
+        # Compute end-effector positions for each waypoint
+        for q in path:
+            if fk_func is not None:
+                # Use provided FK function
+                pose = fk_func(q)
+                if isinstance(pose, tuple):
+                    pos = pose[0]  # position is first element
+                else:
+                    pos = pose[:3, 3]  # Extract from 4x4 matrix
+                ee_positions.append(pos)
+            else:
+                # Use PyBullet's FK by temporarily setting joint positions
+                original_state = []
+                for idx in self.joint_indices:
+                    state = p.getJointState(self.robot_id, idx)
+                    original_state.append(state[0])
+
+                self.set_joint_positions(q)
+                ee_state = p.getLinkState(self.robot_id, self.ee_link_index)
+                ee_positions.append(ee_state[0])
+
+                # Restore original state
+                for i, idx in enumerate(self.joint_indices):
+                    p.resetJointState(self.robot_id, idx, original_state[i])
+
+        # Draw path line
+        line_ids = []
+        for i in range(len(ee_positions) - 1):
+            line_id = p.addUserDebugLine(
+                ee_positions[i],
+                ee_positions[i + 1],
+                lineColorRGB=color,
+                lineWidth=line_width,
+                lifeTime=lifetime,
+            )
+            line_ids.append(line_id)
+
+        # Draw waypoint markers
+        if show_waypoints:
+            for pos in ee_positions:
+                # Draw small cross at each waypoint
+                for axis in range(3):
+                    offset = [0, 0, 0]
+                    offset[axis] = waypoint_size
+                    start = [pos[j] - offset[j] for j in range(3)]
+                    end = [pos[j] + offset[j] for j in range(3)]
+                    line_id = p.addUserDebugLine(
+                        start,
+                        end,
+                        lineColorRGB=waypoint_color,
+                        lineWidth=2,
+                        lifeTime=lifetime,
+                    )
+                    line_ids.append(line_id)
+
+        self._path_line_ids = line_ids
+        return line_ids
+
+    def visualize_trajectory_path(
+        self,
+        trajectory: np.ndarray,
+        fk_func: Optional[Callable] = None,
+        color: Tuple[float, float, float] = (0.0, 0.7, 1.0),
+        line_width: float = 2,
+        sample_every: int = 5,
+        lifetime: float = 0,
+    ):
+        """
+        Visualize a dense trajectory as a smooth 3D curve (no waypoint markers).
+
+        This is useful for showing the smooth interpolated trajectory after
+        time-parameterization.
+
+        Args:
+            trajectory: Joint trajectory, shape (N, 6)
+            fk_func: Forward kinematics function. If None, uses PyBullet's FK
+            color: RGB color for the trajectory line
+            line_width: Width of the line
+            sample_every: Sample every N points (for performance with dense trajectories)
+            lifetime: How long path persists (0 = forever)
+
+        Returns:
+            List of debug line IDs
+        """
+        # Sample the trajectory for performance
+        sampled = trajectory[::sample_every]
+        if len(sampled) < len(trajectory) and not np.array_equal(sampled[-1], trajectory[-1]):
+            sampled = np.vstack([sampled, trajectory[-1]])
+
+        return self.visualize_path(
+            sampled,
+            fk_func=fk_func,
+            color=color,
+            line_width=line_width,
+            show_waypoints=False,
+            lifetime=lifetime,
+        )
+
+    def clear_path(self):
+        """Clear all path visualization lines."""
+        for line_id in self._path_line_ids:
+            p.removeUserDebugItem(line_id)
+        self._path_line_ids = []
 
     def get_end_effector_pose(self) -> Tuple[np.ndarray, np.ndarray]:
         """
