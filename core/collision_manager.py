@@ -146,6 +146,7 @@ class ShapeCollisionManager(CollisionManager):
     Collision manager with geometric shapes.
 
     Checks robot links against collision shapes using forward kinematics.
+    Now checks multiple points along the robot arm, not just the end-effector.
     """
 
     def __init__(self, robot_model: RobotModel, shapes: Optional[List[CollisionShape]] = None):
@@ -160,6 +161,15 @@ class ShapeCollisionManager(CollisionManager):
         self.shapes: List[CollisionShape] = shapes if shapes is not None else []
         self.collision_log = []
 
+        # UR5 link parameters for collision checking (approximate)
+        # These are key positions along the kinematic chain
+        self._ur5_params = {
+            'c1': 0.089159,   # Base height
+            'a2': -0.425,     # Upper arm length
+            'a3': -0.39225,   # Forearm length
+            'c4': 0.10915,    # Wrist 1 length
+        }
+
     def add_shape(self, shape: CollisionShape):
         """Add a collision shape to the scene."""
         self.shapes.append(shape)
@@ -169,9 +179,84 @@ class ShapeCollisionManager(CollisionManager):
         self.shapes.clear()
         self.collision_log.clear()
 
+    def _compute_link_positions(self, q: np.ndarray) -> List[np.ndarray]:
+        """
+        Compute positions of key points along the robot arm.
+
+        Returns a list of 3D positions for collision checking:
+        - Base (fixed at origin)
+        - Shoulder
+        - Elbow
+        - Wrist
+        - End-effector
+
+        Args:
+            q: Joint configuration, shape (6,)
+
+        Returns:
+            List of position arrays, each shape (3,)
+        """
+        positions = []
+
+        # Base position (always at origin, slightly elevated)
+        positions.append(np.array([0.0, 0.0, self._ur5_params['c1'] / 2]))
+
+        c1, c2 = np.cos(q[0]), np.cos(q[1])
+        s1, s2 = np.sin(q[0]), np.sin(q[1])
+        c12 = np.cos(q[0] + q[1])
+        s12 = np.sin(q[0] + q[1])
+        c123 = np.cos(q[0] + q[1] + q[2])
+        s123 = np.sin(q[0] + q[1] + q[2])
+
+        # Shoulder position (after joint 1)
+        shoulder = np.array([0.0, 0.0, self._ur5_params['c1']])
+        positions.append(shoulder)
+
+        # Elbow position (after joints 1-2) - upper arm
+        # Upper arm extends from shoulder
+        a2 = abs(self._ur5_params['a2'])
+        elbow = np.array([
+            a2 * c1 * s2,
+            a2 * s1 * s2,
+            self._ur5_params['c1'] + a2 * c2
+        ])
+        positions.append(elbow)
+
+        # Mid-forearm position (midpoint between elbow and wrist)
+        a3 = abs(self._ur5_params['a3'])
+        wrist = np.array([
+            c1 * (a2 * s2 + a3 * np.sin(q[1] + q[2])),
+            s1 * (a2 * s2 + a3 * np.sin(q[1] + q[2])),
+            self._ur5_params['c1'] + a2 * c2 + a3 * np.cos(q[1] + q[2])
+        ])
+
+        # Mid-forearm
+        mid_forearm = (elbow + wrist) / 2
+        positions.append(mid_forearm)
+
+        # Wrist position
+        positions.append(wrist)
+
+        # End-effector position from full FK
+        try:
+            pose = self.robot.fk(q)
+            if isinstance(pose, np.ndarray) and pose.shape == (4, 4):
+                ee_position = pose[:3, 3]
+                positions.append(ee_position)
+
+                # Add mid-point between wrist and EE
+                mid_wrist_ee = (wrist + ee_position) / 2
+                positions.append(mid_wrist_ee)
+        except Exception:
+            pass
+
+        return positions
+
     def in_collision(self, q: np.ndarray) -> bool:
         """
         Check if a joint configuration is in collision.
+
+        Checks multiple points along the robot arm against all obstacles.
 
         Args:
             q: Joint configuration, shape (dof,)
@@ -182,29 +267,20 @@ class ShapeCollisionManager(CollisionManager):
         if not self.shapes:
             return False
 
-        # Get end-effector position via FK
         try:
-            pose = self.robot.fk(q)
-            if pose is None:
-                return False
+            # Get all link positions
+            link_positions = self._compute_link_positions(q)
 
-            # Extract position (assuming pose is 4x4 matrix or has translation)
-            if isinstance(pose, np.ndarray) and pose.shape == (4, 4):
-                ee_position = pose[:3, 3]
-            elif isinstance(pose, dict):
-                ee_position = np.array(pose['translation'])
-            else:
-                return False
-
-            # Check against all shapes
-            for shape in self.shapes:
-                if shape.check_point(ee_position):
-                    self.collision_log.append({
-                        'config': q.copy(),
-                        'ee_position': ee_position.copy(),
-                        'shape_type': shape.get_type(),
-                    })
-                    return True
+            # Check each link position against all shapes
+            for pos in link_positions:
+                for shape in self.shapes:
+                    if shape.check_point(pos):
+                        self.collision_log.append({
+                            'config': q.copy(),
+                            'collision_point': pos.copy(),
+                            'shape_type': shape.get_type(),
+                        })
+                        return True
 
         except Exception:
             # If FK fails, assume collision to be safe
