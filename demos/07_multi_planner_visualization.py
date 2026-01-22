@@ -315,20 +315,26 @@ def main():
             if hasattr(obs, 'center') and hasattr(obs, 'size'):
                 viz.add_box(obs.center, obs.size, color=(0.8, 0.2, 0.2, 0.6))
 
-        # Show start configuration
+        # Show start configuration and get EE positions using PyBullet's FK
         viz.visualize_configuration(q_start, duration=0.5)
+        start_ee_pos, _ = viz.get_end_effector_pose()
 
-        # Add start and goal markers
-        start_pose = robot.fk(q_start)
-        goal_pose = robot.fk(q_goal)
-        viz.add_marker(start_pose[:3, 3], color=(0, 1, 0), size=0.04)  # Green
-        viz.add_marker(goal_pose[:3, 3], color=(1, 0, 0), size=0.04)   # Red
+        viz.visualize_configuration(q_goal, duration=0.1)
+        goal_ee_pos, _ = viz.get_end_effector_pose()
+
+        # Return to start for visualization
+        viz.visualize_configuration(q_start, duration=0.3)
+
+        # Add start and goal markers using PyBullet's EE positions
+        viz.add_marker(start_ee_pos, color=(0, 1, 0), size=0.04)  # Green
+        viz.add_marker(goal_ee_pos, color=(1, 0, 0), size=0.04)   # Red
 
         # Draw all trajectories with different colors
+        # Use PyBullet's internal FK (fk_func=None) for consistent visualization
         print("\nDrawing all planner trajectories...")
         viz.visualize_multi_planner_trajectories(
             successful_results,
-            fk_func=robot.fk,
+            fk_func=None,  # Use PyBullet's FK for consistency
             show_labels=True,
             line_width=4,
             sample_every=2,
@@ -348,7 +354,7 @@ def main():
                 # Re-draw all paths (so user can see comparison)
                 viz.visualize_multi_planner_trajectories(
                     successful_results,
-                    fk_func=robot.fk,
+                    fk_func=None,  # Use PyBullet's FK for consistency
                     show_labels=False,
                     line_width=2,
                     sample_every=3,
