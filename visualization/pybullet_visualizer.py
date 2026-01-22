@@ -787,6 +787,205 @@ class PyBulletVisualizer:
 
         return check_collision
 
+    def add_text(
+        self,
+        text: str,
+        position: Tuple[float, float, float],
+        color: Tuple[float, float, float] = (1, 1, 1),
+        size: float = 1.5,
+        lifetime: float = 0,
+    ) -> int:
+        """
+        Add 3D text label in the scene.
+
+        Args:
+            text: Text to display
+            position: (x, y, z) position in world coordinates
+            color: RGB color (0-1)
+            size: Text size
+            lifetime: How long text persists (0 = forever)
+
+        Returns:
+            Debug text ID
+        """
+        return p.addUserDebugText(
+            text,
+            position,
+            textColorRGB=color,
+            textSize=size,
+            lifeTime=lifetime,
+        )
+
+    def visualize_multi_planner_trajectories(
+        self,
+        planner_results: dict,
+        fk_func: Optional[Callable] = None,
+        show_labels: bool = True,
+        line_width: float = 3,
+        sample_every: int = 3,
+    ) -> dict:
+        """
+        Visualize trajectories from multiple planners with different colors.
+
+        This draws all planner trajectories simultaneously in the scene,
+        allowing visual comparison of different planning approaches.
+
+        Args:
+            planner_results: Dict mapping planner names to result dicts with keys:
+                - 'trajectory': Dense joint trajectory (N, 6)
+                - 'path': (optional) Original path waypoints
+            fk_func: Forward kinematics function. If None, uses PyBullet's FK
+            show_labels: If True, add text labels for each trajectory
+            line_width: Width of trajectory lines
+            sample_every: Sample every N points (for performance)
+
+        Returns:
+            Dict mapping planner names to their line IDs (for cleanup)
+
+        Example:
+            results = {
+                'RRT': {'trajectory': traj1},
+                'RRT*': {'trajectory': traj2},
+            }
+            viz.visualize_multi_planner_trajectories(results, robot.fk)
+        """
+        # Colorblind-friendly palette
+        colors = [
+            (0.12, 0.47, 0.71),  # blue
+            (1.00, 0.50, 0.05),  # orange
+            (0.17, 0.63, 0.17),  # green
+            (0.84, 0.15, 0.16),  # red
+            (0.58, 0.40, 0.74),  # purple
+            (0.55, 0.34, 0.29),  # brown
+            (0.89, 0.47, 0.76),  # pink
+        ]
+
+        all_line_ids = {}
+        label_offset = 0.05
+
+        for idx, (planner_name, result) in enumerate(planner_results.items()):
+            if result.get('trajectory') is None:
+                continue
+
+            color = colors[idx % len(colors)]
+            trajectory = result['trajectory']
+
+            # Sample trajectory for performance
+            sampled = trajectory[::sample_every]
+            if len(sampled) < len(trajectory) and not np.array_equal(sampled[-1], trajectory[-1]):
+                sampled = np.vstack([sampled, trajectory[-1]])
+
+            # Compute EE positions
+            ee_positions = []
+            for q in sampled:
+                if fk_func is not None:
+                    pose = fk_func(q)
+                    if isinstance(pose, tuple):
+                        pos = pose[0]
+                    else:
+                        pos = pose[:3, 3]
+                    ee_positions.append(pos)
+                else:
+                    # Save and restore joint state
+                    original_state = [p.getJointState(self.robot_id, idx)[0]
+                                      for idx in self.joint_indices]
+                    self.set_joint_positions(q)
+                    ee_state = p.getLinkState(self.robot_id, self.ee_link_index)
+                    ee_positions.append(ee_state[0])
+                    for i, joint_idx in enumerate(self.joint_indices):
+                        p.resetJointState(self.robot_id, joint_idx, original_state[i])
+
+            # Draw trajectory line
+            line_ids = []
+            for i in range(len(ee_positions) - 1):
+                line_id = p.addUserDebugLine(
+                    ee_positions[i],
+                    ee_positions[i + 1],
+                    lineColorRGB=color,
+                    lineWidth=line_width,
+                    lifeTime=0,
+                )
+                line_ids.append(line_id)
+
+            # Add label at midpoint of trajectory
+            if show_labels and ee_positions:
+                mid_idx = len(ee_positions) // 2
+                label_pos = [
+                    ee_positions[mid_idx][0],
+                    ee_positions[mid_idx][1],
+                    ee_positions[mid_idx][2] + label_offset * (idx + 1),
+                ]
+                text_id = self.add_text(planner_name, label_pos, color=color, size=1.2)
+                line_ids.append(text_id)
+
+            all_line_ids[planner_name] = line_ids
+            self._path_line_ids.extend(line_ids)
+
+        return all_line_ids
+
+    def animate_planner_comparison(
+        self,
+        planner_results: dict,
+        timestamps_key: str = 'timestamps',
+        trajectory_key: str = 'trajectory',
+        speed: float = 1.0,
+        pause_between: float = 1.0,
+        show_name: bool = True,
+    ):
+        """
+        Animate through each planner's trajectory sequentially.
+
+        Args:
+            planner_results: Dict mapping planner names to result dicts
+            timestamps_key: Key for timestamps in result dict
+            trajectory_key: Key for trajectory in result dict
+            speed: Playback speed multiplier
+            pause_between: Pause duration between trajectories (seconds)
+            show_name: If True, display planner name during animation
+        """
+        import time
+
+        colors = [
+            (0.12, 0.47, 0.71), (1.00, 0.50, 0.05), (0.17, 0.63, 0.17),
+            (0.84, 0.15, 0.16), (0.58, 0.40, 0.74), (0.55, 0.34, 0.29),
+        ]
+
+        for idx, (planner_name, result) in enumerate(planner_results.items()):
+            trajectory = result.get(trajectory_key)
+            timestamps = result.get(timestamps_key)
+
+            if trajectory is None:
+                continue
+
+            color = colors[idx % len(colors)]
+
+            # Show planner name
+            if show_name:
+                text_id = p.addUserDebugText(
+                    f"Playing: {planner_name}",
+                    [0.5, 0, 0.8],
+                    textColorRGB=color,
+                    textSize=2.0,
+                    lifeTime=0,
+                )
+
+            # Animate trajectory
+            self.visualize_trajectory(
+                trajectory,
+                timestamps,
+                real_time=True,
+                speed=speed,
+                show_ee_trail=True,
+                trail_length=50,
+            )
+
+            # Remove text and pause
+            if show_name:
+                p.removeUserDebugItem(text_id)
+
+            if pause_between > 0:
+                time.sleep(pause_between)
+
     def close(self):
         """Close PyBullet connection."""
         p.disconnect(self.client_id)
