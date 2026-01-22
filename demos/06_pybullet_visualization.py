@@ -20,7 +20,6 @@ import time
 
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import NullCollisionManager
 from core.path_smoothing import smooth_path
 from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
@@ -72,8 +71,8 @@ def main():
 
     # Place obstacle between start and goal
     obstacle_center = (start_ee + goal_ee) / 2
-    obstacle_center[2] += 0.02  # Raise slightly
-    obstacle_size = (0.10, 0.10, 0.18)
+    obstacle_center[2] += 0.0  # Raise slightly
+    obstacle_size = (0.10, 0.10, 0.98)
 
     print(f"    Obstacle center: [{obstacle_center[0]:.3f}, {obstacle_center[1]:.3f}, {obstacle_center[2]:.3f}]")
 
@@ -84,13 +83,74 @@ def main():
         color=(0.9, 0.2, 0.2, 0.7),
     )
 
+    # Add floor obstacle to prevent robot from going under ground
+    floor_height = 0.01  # Thickness of floor
+    floor_size = (2.0, 2.0, floor_height)  # Large floor covering workspace
+    floor_center = (0.0, 0.0, -floor_height / 2)  # Positioned at z=0 (slightly below)
+    floor_id = viz.add_box(
+        center=floor_center,
+        size=floor_size,
+        color=(0.5, 0.5, 0.5, 0.8),  # Gray floor
+    )
+    print(f"    Floor obstacle added at z={floor_center[2]:.3f}")
+
+    # Add walls and ceiling to constrain workspace
+    workspace_size = 1.2  # Workspace half-size (meters)
+    workspace_height = 1.5  # Height of workspace (meters)
+    wall_thickness = 0.02  # Thickness of walls
+
+    # Create list to store all obstacle IDs
+    obstacle_ids = [obstacle_id, floor_id]
+
+    # Front wall (positive Y)
+    front_wall_id = viz.add_box(
+        center=(0.0, workspace_size, workspace_height / 2),
+        size=(workspace_size * 2, wall_thickness, workspace_height),
+        color=(0.4, 0.4, 0.6, 0.6),
+    )
+    obstacle_ids.append(front_wall_id)
+
+    # Back wall (negative Y)
+    back_wall_id = viz.add_box(
+        center=(0.0, -workspace_size, workspace_height / 2),
+        size=(workspace_size * 2, wall_thickness, workspace_height),
+        color=(0.4, 0.4, 0.6, 0.6),
+    )
+    obstacle_ids.append(back_wall_id)
+
+    # Left wall (negative X)
+    left_wall_id = viz.add_box(
+        center=(-workspace_size, 0.0, workspace_height / 2),
+        size=(wall_thickness, workspace_size * 2, workspace_height),
+        color=(0.4, 0.4, 0.6, 0.6),
+    )
+    obstacle_ids.append(left_wall_id)
+
+    # Right wall (positive X)
+    right_wall_id = viz.add_box(
+        center=(workspace_size, 0.0, workspace_height / 2),
+        size=(wall_thickness, workspace_size * 2, workspace_height),
+        color=(0.4, 0.4, 0.6, 0.6),
+    )
+    obstacle_ids.append(right_wall_id)
+
+    # Ceiling
+    ceiling_id = viz.add_box(
+        center=(0.0, 0.0, workspace_height),
+        size=(workspace_size * 2, workspace_size * 2, wall_thickness),
+        color=(0.4, 0.4, 0.6, 0.6),
+    )
+    obstacle_ids.append(ceiling_id)
+
+    print(f"    Workspace enclosure added: {workspace_size*2:.1f}m x {workspace_size*2:.1f}m x {workspace_height:.1f}m")
+
     # ---------------------------
     # 3. Setup collision-aware planning using PyBullet
     # ---------------------------
     print("\n[3] Setting up collision-aware planning...")
 
-    # Create collision checker that uses PyBullet
-    pybullet_collision_check = viz.create_collision_checker([obstacle_id])
+    # Create collision checker that uses PyBullet (includes all obstacles)
+    pybullet_collision_check = viz.create_collision_checker(obstacle_ids)
 
     # Create a custom collision manager that uses PyBullet's collision detection
     class PyBulletCollisionManager:
@@ -175,18 +235,18 @@ def main():
 
     # Add markers for start and goal
     start_ee_pos, _ = viz.get_end_effector_pose()
-    viz.add_marker(start_ee_pos, color=(0, 1, 0), size=0.04)  # Green = start
+    viz.add_marker(tuple(start_ee_pos), color=(0, 1, 0), size=0.04)  # Green = start
 
     viz.set_joint_positions(q_goal)
     goal_ee_pos, _ = viz.get_end_effector_pose()
-    viz.add_marker(goal_ee_pos, color=(1, 0, 0), size=0.04)  # Red = goal
+    viz.add_marker(tuple(goal_ee_pos), color=(1, 0, 0), size=0.04)  # Red = goal
 
     viz.visualize_configuration(q_start, duration=0.5)
 
     # Show planned path
     print("\n    Showing planned path (orange) - notice it avoids the obstacle...")
     viz.visualize_path(
-        path,
+        np.array(path),
         color=(1.0, 0.5, 0.0),
         line_width=3,
         show_waypoints=True,
