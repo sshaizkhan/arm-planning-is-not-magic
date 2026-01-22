@@ -4,9 +4,11 @@ This module provides tools to visualize:
 - Joint-space trajectories (position, velocity, acceleration vs time)
 - End-effector paths in 3D Cartesian space
 - Simple stick-figure robot arm animations
+- PyBullet-based 3D visualization
 
 Usage:
     from visualization import plot_joint_trajectory, plot_ee_path_3d, RobotVisualizer
+    from visualization import PyBulletVisualizer
 """
 
 from visualization.trajectory_plots import (
@@ -25,6 +27,13 @@ from visualization.robot_visualizer import (
     animate_trajectory,
 )
 
+try:
+    from visualization.pybullet_visualizer import PyBulletVisualizer
+    PYBULLET_AVAILABLE = True
+except ImportError:
+    PYBULLET_AVAILABLE = False
+    PyBulletVisualizer = None
+
 __all__ = [
     # Joint-space plots
     "plot_joint_trajectory",
@@ -38,4 +47,7 @@ __all__ = [
     # Robot visualization
     "RobotVisualizer",
     "animate_trajectory",
+    # PyBullet visualization
+    "PyBulletVisualizer",
+    "PYBULLET_AVAILABLE",
 ]
