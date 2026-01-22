@@ -21,6 +21,8 @@ from visualization.trajectory_plots import (
 from visualization.path_3d import (
     plot_ee_path_3d,
     plot_ee_path_with_waypoints,
+    plot_multi_planner_comparison,
+    plot_multi_planner_grid,
 )
 from visualization.robot_visualizer import (
     RobotVisualizer,
@@ -44,6 +46,8 @@ __all__ = [
     # 3D path plots
     "plot_ee_path_3d",
     "plot_ee_path_with_waypoints",
+    "plot_multi_planner_comparison",
+    "plot_multi_planner_grid",
     # Robot visualization
     "RobotVisualizer",
     "animate_trajectory",

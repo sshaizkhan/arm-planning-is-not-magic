@@ -205,6 +205,270 @@ def plot_ee_path_with_waypoints(
     return fig
 
 
+def plot_multi_planner_comparison(
+    planner_results: dict,
+    fk_func: Callable[[np.ndarray], np.ndarray],
+    title: str = "Multi-Planner Trajectory Comparison",
+    figsize: Tuple[int, int] = (14, 10),
+    show_waypoints: bool = True,
+    show_metrics: bool = True,
+    show: bool = True,
+) -> Figure:
+    """
+    Compare trajectories from multiple planners in a single 3D plot.
+
+    This visualization overlays end-effector paths from different planners,
+    allowing users to visually compare path quality, smoothness, and efficiency.
+
+    Args:
+        planner_results: Dictionary mapping planner names to result dicts containing:
+            - 'path': List of joint configurations (planner waypoints)
+            - 'trajectory': Dense joint trajectory (N, 6) after parameterization
+            - 'planning_time': Time taken to plan (optional)
+            - 'path_length': Joint-space path length (optional)
+            - 'duration': Trajectory duration (optional)
+        fk_func: Forward kinematics function (q -> 4x4 matrix)
+        title: Plot title
+        figsize: Figure size
+        show_waypoints: If True, show waypoint markers for each planner
+        show_metrics: If True, show metrics table in the plot
+        show: If True, display immediately
+
+    Returns:
+        matplotlib Figure object
+
+    Example:
+        results = {
+            'RRT': {'path': path1, 'trajectory': traj1, 'planning_time': 0.5},
+            'RRT*': {'path': path2, 'trajectory': traj2, 'planning_time': 1.2},
+        }
+        plot_multi_planner_comparison(results, robot.fk)
+    """
+    # Color palette for different planners (colorblind-friendly)
+    colors = [
+        '#1f77b4',  # blue
+        '#ff7f0e',  # orange
+        '#2ca02c',  # green
+        '#d62728',  # red
+        '#9467bd',  # purple
+        '#8c564b',  # brown
+        '#e377c2',  # pink
+        '#7f7f7f',  # gray
+    ]
+
+    fig = plt.figure(figsize=figsize)
+
+    if show_metrics:
+        # Create subplot with space for metrics table
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        ax = fig.add_subplot(111, projection='3d')
+
+    all_positions = []
+
+    for idx, (planner_name, result) in enumerate(planner_results.items()):
+        color = colors[idx % len(colors)]
+
+        if result.get('trajectory') is not None:
+            trajectory = result['trajectory']
+            ee_positions = extract_ee_positions(trajectory, fk_func)
+            all_positions.append(ee_positions)
+
+            # Plot smooth trajectory
+            ax.plot(
+                ee_positions[:, 0],
+                ee_positions[:, 1],
+                ee_positions[:, 2],
+                color=color,
+                linewidth=2,
+                alpha=0.8,
+                label=planner_name,
+            )
+
+        if show_waypoints and result.get('path') is not None:
+            path = np.array(result['path'])
+            path_ee = extract_ee_positions(path, fk_func)
+
+            # Plot waypoints with same color but different marker
+            ax.scatter(
+                path_ee[:, 0],
+                path_ee[:, 1],
+                path_ee[:, 2],
+                color=color,
+                s=30,
+                marker='o',
+                alpha=0.5,
+                edgecolors='black',
+                linewidths=0.5,
+            )
+
+    # Mark common start and end (from first successful planner)
+    if all_positions:
+        first_traj = all_positions[0]
+        ax.scatter(
+            *first_traj[0],
+            color='green',
+            s=200,
+            marker='^',
+            edgecolors='black',
+            linewidths=2,
+            label='Start',
+            zorder=10,
+        )
+        ax.scatter(
+            *first_traj[-1],
+            color='red',
+            s=200,
+            marker='v',
+            edgecolors='black',
+            linewidths=2,
+            label='Goal',
+            zorder=10,
+        )
+
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_zlabel('Z (m)')
+    ax.set_title(title)
+    ax.legend(loc='upper left', fontsize=9)
+
+    # Set equal aspect ratio
+    if all_positions:
+        all_pos = np.vstack(all_positions)
+        max_range = np.array([
+            all_pos[:, 0].max() - all_pos[:, 0].min(),
+            all_pos[:, 1].max() - all_pos[:, 1].min(),
+            all_pos[:, 2].max() - all_pos[:, 2].min(),
+        ]).max() / 2.0
+
+        mid_x = (all_pos[:, 0].max() + all_pos[:, 0].min()) * 0.5
+        mid_y = (all_pos[:, 1].max() + all_pos[:, 1].min()) * 0.5
+        mid_z = (all_pos[:, 2].max() + all_pos[:, 2].min()) * 0.5
+
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+
+    return fig
+
+
+def plot_multi_planner_grid(
+    planner_results: dict,
+    fk_func: Callable[[np.ndarray], np.ndarray],
+    title: str = "Multi-Planner Comparison",
+    figsize: Tuple[int, int] = (16, 12),
+    show: bool = True,
+) -> Figure:
+    """
+    Display each planner's trajectory in a separate subplot for detailed comparison.
+
+    Args:
+        planner_results: Dictionary mapping planner names to result dicts
+        fk_func: Forward kinematics function
+        title: Overall figure title
+        figsize: Figure size
+        show: If True, display immediately
+
+    Returns:
+        matplotlib Figure object
+    """
+    n_planners = len(planner_results)
+    if n_planners == 0:
+        raise ValueError("No planner results provided")
+
+    # Calculate grid dimensions
+    n_cols = min(3, n_planners)
+    n_rows = (n_planners + n_cols - 1) // n_cols
+
+    fig = plt.figure(figsize=figsize)
+    fig.suptitle(title, fontsize=14, fontweight='bold')
+
+    colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+        '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+    ]
+
+    all_positions = []
+
+    # First pass: collect all positions for consistent axis limits
+    for result in planner_results.values():
+        if result.get('trajectory') is not None:
+            ee_pos = extract_ee_positions(result['trajectory'], fk_func)
+            all_positions.append(ee_pos)
+
+    # Calculate global limits
+    if all_positions:
+        all_pos = np.vstack(all_positions)
+        max_range = np.array([
+            all_pos[:, 0].max() - all_pos[:, 0].min(),
+            all_pos[:, 1].max() - all_pos[:, 1].min(),
+            all_pos[:, 2].max() - all_pos[:, 2].min(),
+        ]).max() / 2.0 * 1.1  # Add 10% margin
+
+        mid_x = (all_pos[:, 0].max() + all_pos[:, 0].min()) * 0.5
+        mid_y = (all_pos[:, 1].max() + all_pos[:, 1].min()) * 0.5
+        mid_z = (all_pos[:, 2].max() + all_pos[:, 2].min()) * 0.5
+
+    # Second pass: create subplots
+    for idx, (planner_name, result) in enumerate(planner_results.items()):
+        ax = fig.add_subplot(n_rows, n_cols, idx + 1, projection='3d')
+        color = colors[idx % len(colors)]
+
+        if result.get('trajectory') is not None:
+            trajectory = result['trajectory']
+            ee_positions = extract_ee_positions(trajectory, fk_func)
+
+            # Plot trajectory
+            ax.plot(
+                ee_positions[:, 0],
+                ee_positions[:, 1],
+                ee_positions[:, 2],
+                color=color,
+                linewidth=2,
+            )
+
+            # Mark start and end
+            ax.scatter(*ee_positions[0], color='green', s=100, marker='^', zorder=10)
+            ax.scatter(*ee_positions[-1], color='red', s=100, marker='v', zorder=10)
+
+            # Build subtitle with metrics
+            subtitle_parts = [planner_name]
+            if result.get('planning_time') is not None:
+                subtitle_parts.append(f"Plan: {result['planning_time']:.3f}s")
+            if result.get('duration') is not None:
+                subtitle_parts.append(f"Exec: {result['duration']:.2f}s")
+            if result.get('path_length') is not None:
+                subtitle_parts.append(f"Len: {result['path_length']:.2f}")
+
+            ax.set_title('\n'.join(subtitle_parts), fontsize=10)
+        else:
+            ax.text(0.5, 0.5, 0.5, 'Planning\nFailed', ha='center', va='center',
+                    fontsize=12, color='red', transform=ax.transAxes)
+            ax.set_title(f"{planner_name}\n(Failed)", fontsize=10, color='red')
+
+        ax.set_xlabel('X', fontsize=8)
+        ax.set_ylabel('Y', fontsize=8)
+        ax.set_zlabel('Z', fontsize=8)
+
+        # Apply consistent limits
+        if all_positions:
+            ax.set_xlim(mid_x - max_range, mid_x + max_range)
+            ax.set_ylim(mid_y - max_range, mid_y + max_range)
+            ax.set_zlim(mid_z - max_range, mid_z + max_range)
+
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+
+    return fig
+
+
 def plot_ee_components(
     time_stamps: np.ndarray,
     trajectory: np.ndarray,
