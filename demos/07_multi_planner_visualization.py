@@ -13,12 +13,13 @@ Usage:
     python demos/07_multi_planner_visualization.py --planners RRT RRT-Connect "RRT*"
     python demos/07_multi_planner_visualization.py --obstacles
     python demos/07_multi_planner_visualization.py --animate
+    python demos/07_multi_planner_visualization.py --environment  # Add floor and walls
 """
 
 import argparse
 import numpy as np
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
@@ -56,6 +57,71 @@ PLANNER_COLORS = {
     "EST": (0.55, 0.34, 0.29),         # brown
     "BiTRRT": (0.89, 0.47, 0.76),      # pink
 }
+
+
+def create_environment_boundaries(
+    floor_height: float = 0.0,
+    wall_distance: float = 0.8,
+    wall_height: float = 1.0,
+    include_ceiling: bool = False,
+) -> List[Tuple[Box, Tuple[float, float, float, float]]]:
+    """
+    Create floor and wall obstacles to constrain robot motion.
+
+    Args:
+        floor_height: Z position of floor surface (default: 0.0)
+        wall_distance: Distance from robot base to walls (default: 0.8m)
+        wall_height: Height of walls (default: 1.0m)
+        include_ceiling: If True, add a ceiling
+
+    Returns:
+        List of (Box, color) tuples for collision checking and visualization
+    """
+    obstacles = []
+    wall_thickness = 0.02
+
+    # Floor - thin box below ground level
+    floor = Box(
+        center=(0.0, 0.0, floor_height - wall_thickness / 2),
+        size=(wall_distance * 2.5, wall_distance * 2.5, wall_thickness)
+    )
+    floor_color = (0.6, 0.6, 0.6, 0.8)  # Gray
+    obstacles.append((floor, floor_color))
+
+    # Back wall (behind robot, -X direction)
+    back_wall = Box(
+        center=(-wall_distance, 0.0, wall_height / 2),
+        size=(wall_thickness, wall_distance * 2, wall_height)
+    )
+    back_wall_color = (0.7, 0.8, 0.9, 0.5)  # Light blue, semi-transparent
+    obstacles.append((back_wall, back_wall_color))
+
+    # Left wall (-Y direction)
+    left_wall = Box(
+        center=(0.0, -wall_distance, wall_height / 2),
+        size=(wall_distance * 2, wall_thickness, wall_height)
+    )
+    left_wall_color = (0.9, 0.8, 0.7, 0.5)  # Light orange, semi-transparent
+    obstacles.append((left_wall, left_wall_color))
+
+    # Right wall (+Y direction)
+    right_wall = Box(
+        center=(0.0, wall_distance, wall_height / 2),
+        size=(wall_distance * 2, wall_thickness, wall_height)
+    )
+    right_wall_color = (0.8, 0.9, 0.7, 0.5)  # Light green, semi-transparent
+    obstacles.append((right_wall, right_wall_color))
+
+    # Optional ceiling
+    if include_ceiling:
+        ceiling = Box(
+            center=(0.0, 0.0, wall_height + wall_thickness / 2),
+            size=(wall_distance * 2, wall_distance * 2, wall_thickness)
+        )
+        ceiling_color = (0.8, 0.8, 0.8, 0.3)  # Light gray, very transparent
+        obstacles.append((ceiling, ceiling_color))
+
+    return obstacles
 
 
 def compute_path_length(path: List[np.ndarray]) -> float:
@@ -229,6 +295,11 @@ def main():
         help="Add obstacles for more interesting planning scenarios",
     )
     parser.add_argument(
+        "--environment",
+        action="store_true",
+        help="Add floor and walls to constrain robot motion",
+    )
+    parser.add_argument(
         "--animate",
         action="store_true",
         help="Animate robot through each trajectory after showing paths",
@@ -247,19 +318,39 @@ def main():
 
     # Setup robot and state space
     robot = UR5RobotModel()
-    obstacles = []
+    obstacles = []  # List of (Box, color) tuples
+    collision_manager = ShapeCollisionManager(robot)
 
+    # Add environment boundaries (floor and walls) if requested
+    if args.environment:
+        print("\nSetting up environment with floor and walls...")
+        env_obstacles = create_environment_boundaries(
+            floor_height=0.0,
+            wall_distance=0.7,
+            wall_height=0.9,
+            include_ceiling=False,
+        )
+        for box, color in env_obstacles:
+            collision_manager.add_shape(box)
+            obstacles.append((box, color))
+        print(f"  Added floor and {len(env_obstacles) - 1} walls")
+
+    # Add additional box obstacle if requested
     if args.obstacles:
-        print("\nSetting up environment with obstacles...")
-        collision_manager = ShapeCollisionManager(robot)
-        obstacle = Box(center=(0.4, 0.0, 0.4), size=(0.15, 0.3, 0.15))
+        print("\nAdding box obstacle...")
+        obstacle = Box(center=(0.3, 0.0, 0.35), size=(0.12, 0.25, 0.12))
         collision_manager.add_shape(obstacle)
-        robot.set_collision_manager(collision_manager)
-        obstacles.append(obstacle)
+        obstacle_color = (0.8, 0.2, 0.2, 0.7)  # Red
+        obstacles.append((obstacle, obstacle_color))
         print(f"  Added box obstacle at {obstacle.center}")
+
+    # Set collision manager on robot
+    if obstacles:
+        robot.set_collision_manager(collision_manager)
     else:
-        collision_manager = NullCollisionManager()
-        robot.in_collision = collision_manager.in_collision
+        # No obstacles - use null collision manager
+        null_manager = NullCollisionManager()
+        robot.in_collision = null_manager.in_collision
 
     state_space = JointStateSpace(robot)
 
@@ -309,11 +400,11 @@ def main():
     print("  - Scroll to zoom")
     print("  - Press Enter in terminal to proceed")
 
-    with PyBulletVisualizer(gui=True, camera_distance=1.8) as viz:
-        # Add obstacles if present
-        for obs in obstacles:
+    with PyBulletVisualizer(gui=True, camera_distance=1.8, camera_yaw=60, camera_pitch=-25) as viz:
+        # Add obstacles (floor, walls, boxes) if present
+        for obs, color in obstacles:
             if hasattr(obs, 'center') and hasattr(obs, 'size'):
-                viz.add_box(obs.center, obs.size, color=(0.8, 0.2, 0.2, 0.6))
+                viz.add_box(obs.center, obs.size, color=color)
 
         # Show start configuration and get EE positions using PyBullet's FK
         viz.visualize_configuration(q_start, duration=0.5)
