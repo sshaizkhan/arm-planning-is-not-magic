@@ -754,6 +754,39 @@ class PyBulletVisualizer:
         """Remove a body (obstacle) from the scene."""
         p.removeBody(body_id)
 
+    def create_collision_checker(self, obstacle_ids: List[int]):
+        """
+        Create a collision checking function that uses PyBullet's FK and collision detection.
+
+        This ensures collision checking is consistent with the visualization.
+
+        Args:
+            obstacle_ids: List of PyBullet body IDs for obstacles to check against
+
+        Returns:
+            A function that takes joint angles and returns True if in collision
+        """
+        robot_id = self.robot_id
+        joint_indices = self.joint_indices
+
+        def check_collision(q: np.ndarray) -> bool:
+            """Check if joint configuration q collides with any obstacle."""
+            # Set joint positions
+            for i, idx in enumerate(joint_indices):
+                p.resetJointState(robot_id, idx, q[i])
+
+            # Step simulation to update collision state
+            p.performCollisionDetection()
+
+            # Check for collisions between robot and each obstacle
+            for obs_id in obstacle_ids:
+                contacts = p.getContactPoints(bodyA=robot_id, bodyB=obs_id)
+                if contacts:
+                    return True
+            return False
+
+        return check_collision
+
     def close(self):
         """Close PyBullet connection."""
         p.disconnect(self.client_id)
