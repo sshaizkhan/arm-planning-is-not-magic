@@ -5,6 +5,12 @@ Demo 06: PyBullet 3D Visualization.
 This demo shows how to visualize robot arm trajectories using PyBullet
 for realistic 3D rendering with proper physics and lighting.
 
+Features demonstrated:
+- Proper UR5 model with correct kinematics
+- Path preview (showing planned waypoints as a line before execution)
+- Trajectory visualization with end-effector trail
+- Interactive camera controls
+
 Run with: python demos/06_pybullet_visualization.py
 """
 
@@ -77,25 +83,56 @@ def main():
     with PyBulletVisualizer(
         gui=True,
         base_position=(0, 0, 0),
-        camera_distance=2.0,
-        camera_yaw=45,
-        camera_pitch=-30,
+        camera_distance=1.8,
+        camera_yaw=50,
+        camera_pitch=-25,
     ) as viz:
         # Show start configuration
         print("\n    Showing start configuration...")
-        viz.visualize_configuration(q_start, duration=2.0)
+        viz.visualize_configuration(q_start, duration=1.5)
 
-        # Add markers for start and goal
+        # Add markers for start and goal end-effector positions
         start_ee_pos, _ = viz.get_end_effector_pose()
-        viz.add_marker(start_ee_pos, color=(0, 1, 0), size=0.05)
+        viz.add_marker(start_ee_pos, color=(0, 1, 0), size=0.04)  # Green = start
 
         # Set goal to see end position
         viz.set_joint_positions(q_goal)
         goal_ee_pos, _ = viz.get_end_effector_pose()
-        viz.add_marker(goal_ee_pos, color=(1, 0, 0), size=0.05)
+        viz.add_marker(goal_ee_pos, color=(1, 0, 0), size=0.04)  # Red = goal
 
         # Reset to start
-        viz.visualize_configuration(q_start, duration=1.0)
+        viz.visualize_configuration(q_start, duration=0.5)
+
+        # ---------------------------
+        # Show planned path preview
+        # ---------------------------
+        print("\n    Showing planned path preview (orange line)...")
+        viz.visualize_path(
+            path,
+            fk_func=robot.fk,
+            color=(1.0, 0.5, 0.0),  # Orange for planned waypoints
+            line_width=3,
+            show_waypoints=True,
+            waypoint_color=(1.0, 0.3, 0.0),
+            waypoint_size=0.012,
+        )
+
+        # Let user see the planned path
+        import time
+        time.sleep(2.0)
+
+        # ---------------------------
+        # Show smooth trajectory preview
+        # ---------------------------
+        print("    Showing smooth trajectory (cyan line)...")
+        viz.visualize_trajectory_path(
+            trajectory,
+            fk_func=robot.fk,
+            color=(0.0, 0.8, 1.0),  # Cyan for smooth trajectory
+            line_width=2,
+            sample_every=10,
+        )
+        time.sleep(2.0)
 
         # Play trajectory
         print("\n    Playing trajectory...")
@@ -110,7 +147,8 @@ def main():
 
         # Hold final position
         print("\n    Trajectory complete. Holding final position...")
-        viz.visualize_configuration(trajectory[-1], duration=3.0)
+        print("    Press Q in PyBullet window or wait 5 seconds to exit.")
+        viz.visualize_configuration(trajectory[-1], duration=5.0)
 
     print("\n" + "=" * 60)
     print("VISUALIZATION COMPLETE")
