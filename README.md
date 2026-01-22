@@ -57,27 +57,53 @@ Each layer:
 ## Repo Structure
 
 ```bash
-arm-planning-from-scratch/
+arm-planning-is-not-magic/
 │
-├── docs/ # Concepts, diagrams, explanations
-├── core/ # Core math & geometry
-│ ├── kinematics/
-│ ├── collision/
-│ ├── path/
-│ └── utils/
+├── docs/                      # Concepts, diagrams, explanations
+│   ├── 01_configuration_space.md
+│   ├── 02_ik_vs_planning.md
+│   ├── 03_collision_checking.md
+│   ├── 04_sampling_based_planning.md
+│   ├── 05_path_vs_trajectory.md
+│   ├── 06_toppra.md
+│   ├── 07_ruckig_vs_toppra.md
+│   └── ...
 │
-├── planners/ # Planning algorithms
-│ ├── sampling/ # RRT, PRM
-│ ├── optimization/ # TrajOpt / Ceres-style
-│ └── cartesian/
+├── core/                      # Core abstractions
+│   ├── robot_model.py         # Robot interface + UR5 implementation
+│   ├── state_space.py         # C-space sampling, validation, interpolation
+│   ├── collision_manager.py   # Collision shapes and checking
+│   └── kinematics/
+│       ├── opw.py             # OPW closed-form IK (8 solutions)
+│       └── opw_parameters.py  # Robot-specific kinematic parameters
 │
-├── timing/ # Time parameterization
-│ ├── toppra/
-│ ├── ruckig/
-│ └── comparison/
+├── planners/                  # OMPL-based sampling planners
+│   ├── ompl_rrt.py            # RRT (single-tree)
+│   ├── ompl_rrt_connect.py    # RRT-Connect (bidirectional)
+│   ├── ompl_rrt_star.py       # RRT* (asymptotically optimal)
+│   ├── ompl_prm.py            # PRM (roadmap)
+│   ├── ompl_kpiece1.py        # KPIECE1 (cell decomposition)
+│   ├── ompl_est.py            # EST (expansive trees)
+│   └── ompl_bitrrt.py         # BiTRRT (bidirectional transition)
 │
-├── demos/ # End-to-end demos
-└── visualization/
+├── parameterization/          # Path → Trajectory conversion
+│   ├── toppra_parameterization.py   # TOPP-RA (time-optimal, offline)
+│   └── ruckig_parameterization.py   # Ruckig (jerk-limited, online)
+│
+├── demos/                     # End-to-end examples
+│   ├── 01_plan_and_time.py    # Basic planning + timing pipeline
+│   ├── 02_toppra_vs_ruckig.py # Compare parameterizers visually
+│   ├── 03_compare_planners.py # Benchmark all 7 OMPL planners
+│   ├── 04_collision_demo.py   # Planning with obstacles
+│   └── 05_visualization_demo.py # Visualization examples
+│
+├── visualization/             # Plotting and animation utilities
+│   ├── trajectory_plots.py    # Joint-space plots (pos, vel, acc)
+│   ├── path_3d.py             # End-effector 3D visualization
+│   └── robot_visualizer.py    # Stick-figure arm animation
+│
+├── docker/                    # Container setup
+└── requirements.txt
 ```
 
 
@@ -98,17 +124,60 @@ It **is**:
 
 ## Getting Started
 
-Start here 👇
+### Read the docs (in order)
 
 ```bash
-docs/00_big_picture.md
-docs/01_configuration_space.md
+docs/01_configuration_space.md   # What is C-space?
+docs/02_ik_vs_planning.md        # Why IK ≠ planning
+docs/03_collision_checking.md    # How collision works
+docs/04_sampling_based_planning.md  # RRT, PRM, etc.
+docs/05_path_vs_trajectory.md    # Path vs trajectory
+docs/06_toppra.md                # Time-optimal parameterization
+docs/07_ruckig_vs_toppra.md      # Industry reality
 ```
 
-Then run:
+### Run the demos
 
 ```bash
-demos/01_ik_demo/
+# Basic planning + timing pipeline
+python demos/01_plan_and_time.py
+
+# Compare TOPP-RA vs Ruckig (generates plots)
+python demos/02_toppra_vs_ruckig.py
+
+# Benchmark all 7 planners
+python demos/03_compare_planners.py --parameterizer toppra
+
+# Planning with collision obstacles
+python demos/04_collision_demo.py
+```
+
+### Quick code example
+
+```python
+from core.robot_model import UR5RobotModel
+from core.state_space import JointStateSpace
+from planners import OMPLRRTConnectPlanner
+from parameterization.toppra_parameterization import ToppraTimeParameterizer
+import numpy as np
+
+# 1. Setup robot and state space
+robot = UR5RobotModel()
+state_space = JointStateSpace(robot)
+
+# 2. Plan a collision-free path
+planner = OMPLRRTConnectPlanner(state_space)
+q_start = np.zeros(6)
+q_goal = np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.0])
+path = planner.plan(q_start, q_goal, timeout=2.0)
+
+# 3. Time-parameterize the path
+v_max = np.ones(6) * 1.0  # rad/s
+a_max = np.ones(6) * 2.0  # rad/s^2
+parameterizer = ToppraTimeParameterizer(v_max, a_max)
+time_stamps, trajectory = parameterizer.compute(path)
+
+print(f"Trajectory duration: {time_stamps[-1]:.2f}s")
 ```
 
 

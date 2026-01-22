@@ -23,7 +23,7 @@ from planners import (
     OMPLBiTRRTPlanner,
 )
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
-from parameterization.rucking_parameterization import RuckigTimeParameterizer
+from parameterization.ruckig_parameterization import RuckigTimeParameterizer
 
 
 def compute_path_length(path):

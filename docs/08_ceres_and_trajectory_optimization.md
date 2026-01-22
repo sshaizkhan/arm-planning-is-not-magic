@@ -242,4 +242,4 @@ The next question is:
 
 Continue with:
 
-👉 [Siedel and Linear Programming](`docs/09_siedel_and_linear_programming.md`)
+[Seidel and Linear Programming](09_siedel_and_linear_programming.md)
