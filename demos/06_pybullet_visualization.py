@@ -46,29 +46,60 @@ def main():
     q_start = np.array([0.0, -np.pi/4, np.pi/3, -np.pi/2, np.pi/4, 0.0])
     q_goal = np.array([np.pi/2, -np.pi/3, np.pi/4, -np.pi/4, -np.pi/4, np.pi/2])
 
-    # Get EE positions for start and goal to place obstacle between them
-    start_pose = robot.fk(q_start)
-    goal_pose = robot.fk(q_goal)
-    start_ee = start_pose[:3, 3]
-    goal_ee = goal_pose[:3, 3]
+    # ---------------------------
+    # 2. Compute obstacle position using PyBullet's FK (for visual consistency)
+    # ---------------------------
+    print("\n[2] Computing obstacle position...")
+
+    # We need to use PyBullet's FK to get EE positions that match the visualization
+    # Create a temporary visualizer just to get the FK
+    import pybullet as p
+    temp_client = p.connect(p.DIRECT)  # Headless
+    p.setAdditionalSearchPath(__import__('pybullet_data').getDataPath())
+
+    # Load the same URDF
+    from visualization.pybullet_visualizer import get_default_ur5_urdf
+    urdf_path = get_default_ur5_urdf()
+    temp_robot = p.loadURDF(urdf_path, basePosition=[0, 0, 0], useFixedBase=True)
+
+    # Get joint indices
+    joint_indices = []
+    for i in range(p.getNumJoints(temp_robot)):
+        if p.getJointInfo(temp_robot, i)[2] == p.JOINT_REVOLUTE:
+            joint_indices.append(i)
+    ee_link = p.getNumJoints(temp_robot) - 1
+
+    # Compute start EE position
+    for i, idx in enumerate(joint_indices):
+        p.resetJointState(temp_robot, idx, q_start[i])
+    start_ee = np.array(p.getLinkState(temp_robot, ee_link)[0])
+
+    # Compute goal EE position
+    for i, idx in enumerate(joint_indices):
+        p.resetJointState(temp_robot, idx, q_goal[i])
+    goal_ee = np.array(p.getLinkState(temp_robot, ee_link)[0])
+
+    p.disconnect(temp_client)
 
     print(f"    Start EE position: [{start_ee[0]:.3f}, {start_ee[1]:.3f}, {start_ee[2]:.3f}]")
     print(f"    Goal EE position:  [{goal_ee[0]:.3f}, {goal_ee[1]:.3f}, {goal_ee[2]:.3f}]")
 
     # ---------------------------
-    # 2. Add obstacle between start and goal
+    # 3. Add obstacle between start and goal
     # ---------------------------
-    print("\n[2] Adding obstacle between start and goal...")
+    print("\n[3] Adding obstacle between start and goal...")
 
     # Place obstacle roughly between start and goal EE positions
     obstacle_center = (start_ee + goal_ee) / 2
     obstacle_center[2] += 0.05  # Raise it slightly
-    obstacle_size = np.array([0.15, 0.15, 0.25])  # Box dimensions
+    obstacle_size = np.array([0.12, 0.12, 0.20])  # Box dimensions
 
     print(f"    Obstacle center: [{obstacle_center[0]:.3f}, {obstacle_center[1]:.3f}, {obstacle_center[2]:.3f}]")
     print(f"    Obstacle size: {obstacle_size[0]:.2f} x {obstacle_size[1]:.2f} x {obstacle_size[2]:.2f}")
 
     # Setup collision manager with the obstacle
+    # Note: ShapeCollisionManager uses robot.fk() which may differ from PyBullet's FK
+    # For planning, we use the robot's own FK (which is what the planner sees)
     collision_manager = ShapeCollisionManager(robot)
     collision_manager.add_shape(Box(obstacle_center, obstacle_size))
     robot.set_collision_manager(collision_manager)
@@ -76,9 +107,9 @@ def main():
     state_space = JointStateSpace(robot)
 
     # ---------------------------
-    # 3. Plan path avoiding obstacle
+    # 4. Plan path avoiding obstacle
     # ---------------------------
-    print("\n[3] Planning collision-free path...")
+    print("\n[4] Planning collision-free path...")
 
     planner = OMPLRRTConnectPlanner(state_space, step_size=0.05)
     path = planner.plan(q_start, q_goal, timeout=5.0)
@@ -97,9 +128,9 @@ def main():
         print("    Path verified collision-free!")
 
     # ---------------------------
-    # 4. Time-parameterize path
+    # 5. Time-parameterize path
     # ---------------------------
-    print("\n[4] Time-parameterizing path...")
+    print("\n[5] Time-parameterizing path...")
 
     dof = robot.dof()
     v_max = np.ones(dof) * 1.5  # rad/s
@@ -110,9 +141,9 @@ def main():
     print(f"    Trajectory: {time_stamps[-1]:.3f}s duration, {len(time_stamps)} samples")
 
     # ---------------------------
-    # 5. Visualize with PyBullet
+    # 6. Visualize with PyBullet
     # ---------------------------
-    print("\n[5] Starting PyBullet visualization...")
+    print("\n[6] Starting PyBullet visualization...")
     print("    Controls:")
     print("    - Mouse: Rotate camera")
     print("    - Scroll: Zoom")
@@ -152,10 +183,10 @@ def main():
         # ---------------------------
         # Show planned path preview
         # ---------------------------
+        # Note: Don't pass fk_func - use PyBullet's internal FK to match the visual robot
         print("\n    Showing planned path (orange) - notice it avoids the obstacle...")
         viz.visualize_path(
             path,
-            fk_func=robot.fk,
             color=(1.0, 0.5, 0.0),  # Orange for planned waypoints
             line_width=3,
             show_waypoints=True,
@@ -173,7 +204,6 @@ def main():
         print("    Showing smooth trajectory (cyan line)...")
         viz.visualize_trajectory_path(
             trajectory,
-            fk_func=robot.fk,
             color=(0.0, 0.8, 1.0),  # Cyan for smooth trajectory
             line_width=2,
             sample_every=10,
