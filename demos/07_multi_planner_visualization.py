@@ -354,9 +354,16 @@ def main():
 
     state_space = JointStateSpace(robot)
 
-    # Define start and goal
-    q_start = np.array([0.0, -0.5, 0.5, -0.5, -0.5, 0.0])
-    q_goal = np.array([1.5, -1.0, 1.0, -1.0, 0.5, 0.5])
+    # Define start and goal configurations
+    # Use different configs when environment (walls) is enabled to stay within bounds
+    if args.environment:
+        # Configurations that stay within wall boundaries (0.7m from base)
+        # These keep the arm more upright to avoid colliding with walls
+        q_start = np.array([0.0, -0.5, 0.5, 0.0, 0.0, 0.0])
+        q_goal = np.array([0.9, -1.1, 0.9, -0.2, 0.1, 0.0])
+    else:
+        q_start = np.array([0.0, -0.5, 0.5, -0.5, -0.5, 0.0])
+        q_goal = np.array([1.5, -1.0, 1.0, -1.0, 0.5, 0.5])
 
     print(f"\nStart config: {np.round(q_start, 2)}")
     print(f"Goal config:  {np.round(q_goal, 2)}")

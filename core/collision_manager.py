@@ -303,13 +303,17 @@ class ShapeCollisionManager(CollisionManager):
         # UR5 link radii for capsule collision checking (meters)
         # These approximate the robot's physical dimensions
         self._link_radii = {
-            'base': 0.08,       # Base cylinder
-            'shoulder': 0.075,  # Shoulder joint
-            'upper_arm': 0.06,  # Upper arm link
-            'forearm': 0.05,    # Forearm link
-            'wrist': 0.045,     # Wrist section
-            'ee': 0.04,         # End-effector
+            'base': 0.065,      # Base cylinder (reduced to avoid floor collision)
+            'shoulder': 0.065,  # Shoulder joint
+            'upper_arm': 0.05,  # Upper arm link
+            'forearm': 0.045,   # Forearm link
+            'wrist': 0.04,      # Wrist section
+            'ee': 0.035,        # End-effector
         }
+
+        # Base mounting height - robot base starts above floor to avoid collision
+        # Must be >= base radius so collision volume doesn't extend below floor
+        self._base_mount_height = 0.07
 
     def add_shape(self, shape: CollisionShape):
         """Add a collision shape to the scene."""
@@ -339,7 +343,8 @@ class ShapeCollisionManager(CollisionManager):
         s1, s2 = np.sin(q[0]), np.sin(q[1])
 
         # Key positions along the kinematic chain
-        base = np.array([0.0, 0.0, 0.0])
+        # Base starts at mounting height to avoid floor collision
+        base = np.array([0.0, 0.0, self._base_mount_height])
         shoulder = np.array([0.0, 0.0, self._ur5_params['c1']])
 
         a2 = abs(self._ur5_params['a2'])
