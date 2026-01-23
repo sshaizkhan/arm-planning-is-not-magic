@@ -310,6 +310,11 @@ def main():
         default=1.5,
         help="Animation speed multiplier (default: 1.5)",
     )
+    parser.add_argument(
+        "--random",
+        action="store_true",
+        help="Use random valid goal configuration instead of fixed goal",
+    )
     args = parser.parse_args()
 
     print("=" * 60)
@@ -338,7 +343,13 @@ def main():
     # Add additional box obstacle if requested
     if args.obstacles:
         print("\nAdding box obstacle...")
-        obstacle = Box(center=(0.3, 0.0, 0.35), size=(0.12, 0.25, 0.12))
+        # Position obstacle in the workspace where the arm moves
+        # For environment mode, place it between typical start/goal paths
+        if args.environment:
+            obstacle_center = (-0.35, -0.15, 0.65)  # In the arm's workspace
+        else:
+            obstacle_center = (0.3, 0.0, 0.35)  # Original position
+        obstacle = Box(center=obstacle_center, size=(0.12, 0.20, 0.15))
         collision_manager.add_shape(obstacle)
         obstacle_color = (0.8, 0.2, 0.2, 0.7)  # Red
         obstacles.append((obstacle, obstacle_color))
@@ -364,6 +375,23 @@ def main():
     else:
         q_start = np.array([0.0, -0.5, 0.5, -0.5, -0.5, 0.0])
         q_goal = np.array([1.5, -1.0, 1.0, -1.0, 0.5, 0.5])
+
+    # Random goal generation if requested
+    if args.random:
+        print("\nSearching for random valid goal...")
+        lower, upper = robot.joint_limits()
+        for attempt in range(100):
+            # Generate random configuration
+            q_random = lower + np.random.random(6) * (upper - lower)
+            # Check if valid (within limits and collision-free)
+            if state_space.is_valid(q_random):
+                # Check it's different enough from start
+                if np.linalg.norm(q_random - q_start) > 1.0:
+                    q_goal = q_random
+                    print(f"  Found valid goal after {attempt + 1} attempts")
+                    break
+        else:
+            print("  Warning: Could not find random valid goal, using default")
 
     print(f"\nStart config: {np.round(q_start, 2)}")
     print(f"Goal config:  {np.round(q_goal, 2)}")
