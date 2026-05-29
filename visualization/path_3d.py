@@ -247,3 +247,212 @@ def plot_ee_components(
         plt.show()
 
     return fig
+
+
+def plot_multi_planner_3d(
+    planner_results: dict,
+    fk_func: Callable[[np.ndarray], np.ndarray],
+    title: str = "Multi-Planner End-Effector Paths",
+    figsize: Tuple[int, int] = (10, 8),
+    show_waypoints: bool = False,
+    show: bool = True,
+) -> Figure:
+    """
+    Plot all planner trajectories in a single 3D axes, color-coded by planner.
+
+    Args:
+        planner_results: Dict mapping planner names to result dicts with keys:
+            - 'trajectory': Dense joint trajectory (N, dof)
+            - 'path': (optional) Original waypoints
+        fk_func: Forward kinematics function returning 4x4 matrix
+        title: Plot title
+        figsize: Figure size
+        show_waypoints: If True, also plot raw path waypoints
+        show: If True, display immediately
+
+    Returns:
+        matplotlib Figure
+    """
+    colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+        '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+    ]
+
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection='3d')
+
+    all_positions = []
+
+    for idx, (planner_name, result) in enumerate(planner_results.items()):
+        color = colors[idx % len(colors)]
+
+        if result.get('trajectory') is not None:
+            ee_positions = extract_ee_positions(result['trajectory'], fk_func)
+            all_positions.append(ee_positions)
+            ax.plot(
+                ee_positions[:, 0], ee_positions[:, 1], ee_positions[:, 2],
+                color=color, linewidth=2, alpha=0.8, label=planner_name,
+            )
+
+        if show_waypoints and result.get('path') is not None:
+            path_ee = extract_ee_positions(np.array(result['path']), fk_func)
+            ax.scatter(
+                path_ee[:, 0], path_ee[:, 1], path_ee[:, 2],
+                color=color, s=30, alpha=0.5, edgecolors='black', linewidths=0.5,
+            )
+
+    if all_positions:
+        first = all_positions[0]
+        ax.scatter(*first[0], color='green', s=200, marker='^', edgecolors='black',
+                   linewidths=2, label='Start', zorder=10)
+        ax.scatter(*first[-1], color='red', s=200, marker='v', edgecolors='black',
+                   linewidths=2, label='Goal', zorder=10)
+
+        all_pos = np.vstack(all_positions)
+        rng = np.array([
+            all_pos[:, 0].max() - all_pos[:, 0].min(),
+            all_pos[:, 1].max() - all_pos[:, 1].min(),
+            all_pos[:, 2].max() - all_pos[:, 2].min(),
+        ]).max() / 2.0
+        mid = all_pos.mean(axis=0)
+        ax.set_xlim(mid[0] - rng, mid[0] + rng)
+        ax.set_ylim(mid[1] - rng, mid[1] + rng)
+        ax.set_zlim(mid[2] - rng, mid[2] + rng)
+
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_zlabel('Z (m)')
+    ax.set_title(title)
+    ax.legend(loc='upper left', fontsize=9)
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    return fig
+
+
+def plot_multi_planner_grid(
+    planner_results: dict,
+    fk_func: Callable[[np.ndarray], np.ndarray],
+    title: str = "Multi-Planner Comparison",
+    figsize: Tuple[int, int] = (16, 12),
+    show: bool = True,
+) -> Figure:
+    """
+    Show each planner in its own 3D subplot with per-planner metrics as subtitle.
+
+    Args:
+        planner_results: Dict mapping planner names to result dicts
+        fk_func: Forward kinematics function
+        title: Overall figure title
+        figsize: Figure size
+        show: If True, display immediately
+
+    Returns:
+        matplotlib Figure
+    """
+    n = len(planner_results)
+    if n == 0:
+        raise ValueError("No planner results provided")
+
+    n_cols = min(3, n)
+    n_rows = (n + n_cols - 1) // n_cols
+    colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+        '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+    ]
+
+    fig = plt.figure(figsize=figsize)
+    fig.suptitle(title, fontsize=14, fontweight='bold')
+
+    all_positions = [
+        extract_ee_positions(r['trajectory'], fk_func)
+        for r in planner_results.values()
+        if r.get('trajectory') is not None
+    ]
+
+    limits = None
+    if all_positions:
+        all_pos = np.vstack(all_positions)
+        rng = np.array([
+            all_pos[:, 0].max() - all_pos[:, 0].min(),
+            all_pos[:, 1].max() - all_pos[:, 1].min(),
+            all_pos[:, 2].max() - all_pos[:, 2].min(),
+        ]).max() / 2.0 * 1.1
+        mid = all_pos.mean(axis=0)
+        limits = (mid, rng)
+
+    for idx, (name, result) in enumerate(planner_results.items()):
+        ax = fig.add_subplot(n_rows, n_cols, idx + 1, projection='3d')
+        color = colors[idx % len(colors)]
+
+        if result.get('trajectory') is not None:
+            ee = extract_ee_positions(result['trajectory'], fk_func)
+            ax.plot(ee[:, 0], ee[:, 1], ee[:, 2], color=color, linewidth=2)
+            ax.scatter(*ee[0], color='green', s=100, marker='^', zorder=10)
+            ax.scatter(*ee[-1], color='red', s=100, marker='v', zorder=10)
+
+            parts = [name]
+            if result.get('planning_time') is not None:
+                parts.append(f"Plan: {result['planning_time']:.3f}s")
+            if result.get('duration') is not None:
+                parts.append(f"Exec: {result['duration']:.2f}s")
+            ax.set_title('\n'.join(parts), fontsize=10)
+        else:
+            ax.text2D(0.5, 0.5, 'Failed', ha='center', va='center',
+                      fontsize=12, color='red', transform=ax.transAxes)
+            ax.set_title(f"{name}\n(Failed)", fontsize=10, color='red')
+
+        ax.set_xlabel('X', fontsize=8)
+        ax.set_ylabel('Y', fontsize=8)
+        ax.set_zlabel('Z', fontsize=8)
+
+        if limits:
+            mid, rng = limits
+            ax.set_xlim(mid[0] - rng, mid[0] + rng)
+            ax.set_ylim(mid[1] - rng, mid[1] + rng)
+            ax.set_zlim(mid[2] - rng, mid[2] + rng)
+
+    plt.tight_layout()
+    if show:
+        plt.show()
+    return fig
+
+
+def plot_ee_components_over_time(
+    time_stamps: np.ndarray,
+    trajectory: np.ndarray,
+    fk_func: Callable[[np.ndarray], np.ndarray],
+    title: str = "End-Effector Position Components",
+    figsize: Tuple[int, int] = (12, 6),
+    show: bool = True,
+) -> Figure:
+    """
+    Plot X, Y, Z components of end-effector position over time.
+
+    Args:
+        time_stamps: Time values, shape (N,)
+        trajectory: Joint positions, shape (N, dof)
+        fk_func: Forward kinematics function
+        title: Plot title
+        figsize: Figure size
+        show: If True, display immediately
+
+    Returns:
+        matplotlib Figure
+    """
+    ee_positions = extract_ee_positions(trajectory, fk_func)
+
+    fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
+    for i, (ax, label, color) in enumerate(zip(axes, ['X', 'Y', 'Z'], ['red', 'green', 'blue'])):
+        ax.plot(time_stamps, ee_positions[:, i], color=color, linewidth=1.5)
+        ax.set_ylabel(f'{label} (m)')
+        ax.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel('Time (s)')
+    axes[0].set_title(title)
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    return fig
