@@ -10,10 +10,10 @@ Cartesian space better. These visualizations bridge the gap by showing
 what the robot's tool tip actually does in the real world.
 """
 
-from typing import List, Optional, Tuple, Callable
-import numpy as np
+from typing import Callable, List, Tuple
+
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 from matplotlib.figure import Figure
 
 
@@ -88,7 +88,7 @@ def plot_ee_path_3d(
         # Add colorbar
         sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(0, 1))
         sm.set_array([])
-        cbar = plt.colorbar(sm, ax=ax, shrink=0.6, label='Time (normalized)')
+        _ = plt.colorbar(sm, ax=ax, shrink=0.6, label='Time (normalized)')
     else:
         ax.plot(x, y, z, 'b-', linewidth=2)
 

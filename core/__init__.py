@@ -8,18 +8,18 @@ This module provides the fundamental building blocks:
 - OPWKinematics: Closed-form inverse kinematics
 """
 
-from core.robot_model import RobotModel, UR5RobotModel
-from core.state_space import JointStateSpace
 from core.collision_manager import (
+    Box,
     CollisionManager,
     CollisionShape,
-    Box,
-    Sphere,
     Cylinder,
     NullCollisionManager,
     ShapeCollisionManager,
     SimpleSelfCollisionManager,
+    Sphere,
 )
+from core.robot_model import RobotModel, UR5RobotModel
+from core.state_space import JointStateSpace
 
 __all__ = [
     # Robot models

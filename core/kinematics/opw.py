@@ -12,11 +12,12 @@ It only answers:
 "Given a pose, what joint configurations are kinematically valid?"
 """
 
-from core.robot_model import RobotModel
-from core.kinematics.opw_parameters import OPWParameters
+from typing import Optional
 
 import numpy as np
-from typing import Optional
+
+from core.kinematics.opw_parameters import OPWParameters
+from core.robot_model import RobotModel
 
 
 class OPWKinematics:

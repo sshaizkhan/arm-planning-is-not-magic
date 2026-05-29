@@ -4,8 +4,9 @@ This module provides functions to smooth jagged paths from sampling-based
 planners (RRT, PRM, etc.) to produce smoother, more natural robot motions.
 """
 
+from typing import Callable, List, Optional
+
 import numpy as np
-from typing import List, Callable, Optional
 from scipy import interpolate
 
 

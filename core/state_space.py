@@ -10,9 +10,9 @@ This mirrors how OMPL thinks about state spaces, but remains
 library-agnostic and explicit for learning purposes.
 """
 
-from core.robot_model import RobotModel
-
 import numpy as np
+
+from core.robot_model import RobotModel
 
 
 class JointStateSpace:

@@ -22,7 +22,7 @@ import numpy as np
 
 try:
     from ompl import base as ob  # type: ignore
-    from ompl import geometric as og  # type: ignore
+    from ompl import geometric as og  # type: ignore  # noqa: F401
 except ImportError:
     raise ImportError(
         "OMPL Python bindings are required. "
