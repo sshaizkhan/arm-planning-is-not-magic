@@ -131,6 +131,16 @@ Now that constraints are enforced, the trajectory must still be *executed*.
 
 That means controllers.
 
+## Exercises
+
+1. **LP size in TOPP-RA.** Section 3 states that Seidel is fast because robotics LPs are "small but frequent." For a path discretized into N stages with a 6-DOF robot, how many decision variables and constraints does each per-stage LP have? Write out the LP at a single stage using the acceleration constraint from section 8 of `06_toppra.md`. Confirm that it is indeed small (2 variables or fewer) regardless of robot DOF.
+
+2. **Seidel vs simplex.** Seidel's algorithm has expected O(d! · m) time in d dimensions with m constraints, while the simplex method has worst-case exponential time but good average-case performance. For d=2 (the TOPP-RA case) and m=12 constraints (6 joints × upper/lower acceleration bounds), compute the expected operation count for Seidel. Why is this preferable to a general-purpose LP solver even if the general solver has better asymptotic complexity for large problems?
+
+3. **LP feasibility vs optimality.** Section 2 notes that in motion planning, LPs are used for feasibility rather than optimality. Explain the difference: what does it mean for an LP to be feasible vs optimal? Give an example from TOPP-RA where you only need to know whether a velocity `s_dot` is admissible, not what the best possible `s_dot` is. Why does checking feasibility allow you to use a simpler and faster algorithm than full optimization?
+
+---
+
 Continue with:
 
 [Controllers and Execution](10_controllers_and_execution.md)

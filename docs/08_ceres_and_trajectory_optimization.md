@@ -240,6 +240,16 @@ The next question is:
 
 > How do we enforce constraints and execute trajectories?
 
+## Exercises
+
+1. **Residual design tradeoffs.** Section 6 shows a smoothness residual `r_smooth = q_{k+1} - 2q_k + q_{k-1}` (the discrete second derivative). This penalizes acceleration. If you wanted to penalize jerk instead, what would the residual look like? Write it out using neighboring waypoints. What is the minimum number of consecutive waypoints needed to express a jerk residual, and why does this increase the sparsity pattern of the Jacobian?
+
+2. **Soft vs hard constraints.** Section 6 converts hard velocity limits into soft penalty residuals (`r_vel = max(0, |q_dot| - v_max)`). Give a concrete scenario where this soft formulation allows Ceres to return a trajectory that technically violates the velocity limit. How would you detect this after optimization? What is the correct way to handle hard constraints in a Ceres problem if soft penalties are insufficient?
+
+3. **Local vs global optimality.** Section 4 states that Ceres provides only local optimality. Construct a simple 1-DOF, 3-waypoint example (on paper) where two different smooth trajectories both satisfy all constraints and both are locally optimal for a smoothness cost, but one has lower total cost than the other. What determines which one Ceres finds? How does the initial guess affect this?
+
+---
+
 Continue with:
 
 [Seidel and Linear Programming](09_siedel_and_linear_programming.md)

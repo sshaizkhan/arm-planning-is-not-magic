@@ -1,97 +1,24 @@
 """
-OMPL RRT connect planner.
+OMPL RRT-Connect planner.
 
-This module uses the OMPL RRT connect algorithm to plan a path between two states.
+Bidirectional variant: grows trees from BOTH start and goal simultaneously,
+connecting when they meet. Typically 2-5x faster than single-tree RRT.
+
+Use this when:
+- No path cost optimization needed
+- Speed matters more than path quality
 """
 
-import numpy as np
+from ompl import geometric as og  # type: ignore
 
-try:
-    from ompl import base as ob
-    from ompl import geometric as og
-except ImportError:
-    raise ImportError(
-        "OMPL Python bindings are required. "
-        "Install via your ROS distro or OMPL build."
-    )
+from planners.base_ompl_planner import BaseOMPLPlanner
 
 
-class OMPLRRTConnectPlanner:
-    """
-    OMPL RRT connect planner.
-    """
-    def __init__(self, state_space, step_size=0.1):
-        self.state_space = state_space
-        self.robot = state_space.robot
-        self.dim = state_space.dim
+class OMPLRRTConnectPlanner(BaseOMPLPlanner):
+    """Bidirectional RRT. Fastest for most point-to-point problems."""
 
-        # ------------------------------------------------------------------
-        # OMPL state space definition
-        # ------------------------------------------------------------------
-        self.ompl_space = ob.RealVectorStateSpace(self.dim)
-        bounds = ob.RealVectorBounds(self.dim)
-        lower, upper = self.robot.joint_limits()
-
-        for i in range(self.dim):
-            bounds.setLow(i, lower[i])
-            bounds.setHigh(i, upper[i])
-
-        self.ompl_space.setBounds(bounds)
-
-        # ------------------------------------------------------------------
-        # Space information
-        # ------------------------------------------------------------------
-        self.si = ob.SpaceInformation(self.ompl_space)
-
-        def is_state_valid(state):
-            q = np.array([state[i] for i in range(self.dim)])
-            return self.state_space.is_valid(q)
-
-        self.si.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))
-        self.si.setup()
-
-        self.step_size = step_size
-
-    # ------------------------------------------------------------------
-    # Planning
-    # ------------------------------------------------------------------
-
-    def plan(self, q_start, q_goal, timeout=1.0):
-        """
-        Plan a collision-free joint-space path.
-
-        Args:
-            q_start: start configuration (dof,)
-            q_goal: goal configuration (dof,)
-            timeout: planning time in seconds
-
-        Returns:
-            List of joint configurations (path), or None if failed.
-        """
-        start = ob.State(self.ompl_space)
-        goal = ob.State(self.ompl_space)
-        for i in range(self.dim):
-            start[i] = q_start[i]
-            goal[i] = q_goal[i]
-
-        pdef = ob.ProblemDefinition(self.si)
-        pdef.setStartAndGoalStates(start, goal)
-
+    def _create_planner(self):
         planner = og.RRTConnect(self.si)
-        planner.setRange(self.step_size)
-        planner.setProblemDefinition(pdef)
-        planner.setup()
-
-        solved = planner.solve(timeout)
-
-        if not solved:
-            return None
-
-        path_geometric = pdef.getSolutionPath()
-        path_geometric.interpolate()
-
-        path = []
-        for state in path_geometric.getStates():
-            q = np.array([state[i] for i in range(self.dim)])
-            path.append(q)
-        return path
+        if self.step_size is not None:
+            planner.setRange(self.step_size)
+        return planner

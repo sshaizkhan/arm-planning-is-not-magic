@@ -107,13 +107,14 @@ class Cylinder(CollisionShape):
         return "cylinder"
 
 
-class CollisionManager:
+class CollisionManager(ABC):
     """
     Abstract collision manager.
 
     The robot model delegates collision queries here.
     """
 
+    @abstractmethod
     def in_collision(self, q: np.ndarray) -> bool:
         """
         Check if a joint configuration is in collision.
@@ -124,7 +125,7 @@ class CollisionManager:
         Returns:
             True if in collision, False otherwise
         """
-        raise NotImplementedError('Collision manager must implement in_collision method')
+        pass
 
 
 class NullCollisionManager(CollisionManager):
@@ -182,35 +183,20 @@ class ShapeCollisionManager(CollisionManager):
         """
         if not self.shapes:
             return False
-
-        # Get end-effector position via FK
         try:
-            pose = self.robot.fk(q)
-            if pose is None:
-                return False
-
-            # Extract position (assuming pose is 4x4 matrix or has translation)
-            if isinstance(pose, np.ndarray) and pose.shape == (4, 4):
-                ee_position = pose[:3, 3]
-            elif isinstance(pose, dict):
-                ee_position = np.array(pose['translation'])
-            else:
-                return False
-
-            # Check against all shapes
-            for shape in self.shapes:
-                if shape.check_point(ee_position):
-                    self.collision_log.append({
-                        'config': q.copy(),
-                        'ee_position': ee_position.copy(),
-                        'shape_type': shape.get_type(),
-                    })
-                    return True
-
+            # Check all link positions — base, shoulder, elbow, wrist, EE
+            link_positions = self.robot.link_positions(q)
+            for pos in link_positions:
+                for shape in self.shapes:
+                    if shape.check_point(pos):
+                        self.collision_log.append({
+                            'config': q.copy(),
+                            'link_position': pos.copy(),
+                            'shape_type': shape.get_type(),
+                        })
+                        return True
         except Exception:
-            # If FK fails, assume collision to be safe
             return True
-
         return False
 
     def get_collision_log(self) -> List[dict]:
@@ -222,17 +208,3 @@ class ShapeCollisionManager(CollisionManager):
         self.collision_log.clear()
 
 
-class SimpleSelfCollisionManager(CollisionManager):
-    """
-    Placeholder for self-collision logic.
-
-    This will later be replaced by FCL-based checking.
-    """
-
-    def __init__(self, robot_model: RobotModel):
-        """Initialize the simple self-collision manager."""
-        self.robot = robot_model
-
-    def in_collision(self, q: np.ndarray) -> bool:
-        """Check if a joint configuration is in collision."""
-        return False

@@ -152,6 +152,16 @@ If execution fails, look *downstream*, not upstream.
 
 ---
 
+## Exercises
+
+1. **Controller mode mismatch.** A position-control interface receives a trajectory with 500 waypoints evenly spaced in time at 1 ms apart. A velocity-control interface receives the same trajectory. Describe what each controller does between waypoints. Which interface is more sensitive to gaps in the trajectory, and why? What happens to a velocity-controlled robot if the trajectory publisher stops sending commands mid-motion?
+
+2. **Feedforward contribution.** Section 4 describes feedforward as using planned velocity/acceleration to reduce tracking error proactively. Write a one-paragraph explanation of why feedforward helps specifically at the start of a fast motion segment — where feedback (which reacts to error) is least helpful. What would you observe in the joint position error plot if feedforward were disabled on a trajectory with a high initial acceleration?
+
+3. **Sparse waypoints and interpolation artifacts.** Section 5 lists "discrete waypoints too sparse" as a failure mode. Suppose a controller linearly interpolates between waypoints 100 ms apart, but the planned trajectory has a smooth curve that deviates significantly from linear over that interval. Estimate (geometrically) the maximum position error this introduces as a function of path curvature and waypoint spacing. What waypoint spacing would keep this error below 1 mm for a typical industrial arm move?
+
+---
+
 ## 9. What Comes Next
 
 With theory complete, we now move to **code**.

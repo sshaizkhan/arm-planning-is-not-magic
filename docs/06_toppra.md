@@ -233,6 +233,18 @@ But industry often prefers something else.
 
 Why?
 
+## Exercises
+
+1. **Velocity profile inspection.** Run `demos/02_toppra_vs_ruckig.py` and examine the joint velocity profile for TOPP-RA. Does it always saturate the velocity limit? Find a segment where it does not reach `v_max` and explain geometrically why — what property of the path at that location prevents the robot from moving faster?
+
+2. **What `n_samples` controls.** In `parameterization/toppra_parameterization.py`, the `ToppraTimeParameterizer` takes an `n_samples` parameter. The docstring explains what it does. Verify this experimentally: run the same path with `n_samples=10` and `n_samples=1000`. Does the trajectory duration change? Does the motion of the robot change? What does change, and why does it matter for a real controller running at a fixed rate?
+
+3. **Number of TOPP-RA stages.** TOPP-RA discretizes the path into stages (section 7). What determines how many stages are used? Find the relevant parameter in `ToppraTimeParameterizer.compute()`. If you double the number of stages on a fixed path, what happens to: (a) solver runtime, (b) constraint satisfaction accuracy, (c) the computed trajectory duration?
+
+4. **Forward pass failure.** Section 5 explains why greedy forward integration fails. Construct a 2D example (on paper) with a path that has a tight curve near the end. Draw the velocity limit curve and show a forward-greedy trajectory that violates the braking constraint. Then show how the backward pass from the TOPP-RA algorithm would have caught this before it happened.
+
+---
+
 Continue with:
 
 [Ruckig vs TOPP-RA (Why Industry Chooses Ruckig)](07_ruckig_vs_toppra.md)

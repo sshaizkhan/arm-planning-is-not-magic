@@ -213,6 +213,18 @@ Optional next topics:
 * Ceres-based smoothing
 * Full pipeline examples
 
+## Exercises
+
+1. **What makes Ruckig "online".** Section 6 says Ruckig recomputes in microseconds. Identify the specific algorithmic property that makes this possible — it uses closed-form polynomial profiles rather than iterative optimization. Write a one-paragraph explanation of why a closed-form solution is possible for the single-axis, jerk-bounded minimum-time problem, and why TOPP-RA cannot offer the same.
+
+2. **Compare durations.** Both parameterizers in this repo accept the same path format. Write a function `compare_parameterizers(path, v_max, a_max)` that runs both `ToppraTimeParameterizer` and the Ruckig-based parameterizer on the same path and returns a dict with both durations and the percentage difference. Run it on the output of `demos/01_plan_and_time.py`. Which is faster, and by how much?
+
+3. **Mid-motion replanning.** If a robot is already moving at joint velocity `v_current` when a new goal arrives, Ruckig handles this naturally because it takes current state `(q, v, a)` as input. TOPP-RA cannot. Explain precisely why: what assumption in TOPP-RA's problem formulation breaks when the start state has nonzero velocity? What would you have to do to use TOPP-RA for mid-motion replanning?
+
+4. **Jerk profiles.** Run `demos/02_toppra_vs_ruckig.py` and plot the jerk (third derivative of joint position) for both parameterizers. TOPP-RA does not explicitly bound jerk. Ruckig does. Describe what the jerk profiles look like for each, and explain why jerk matters for the physical hardware (gearboxes, vibration, torque ripple).
+
+---
+
 Continue with:
 
 [Ceres and Trajectory Optimization](08_ceres_and_trajectory_optimization.md)

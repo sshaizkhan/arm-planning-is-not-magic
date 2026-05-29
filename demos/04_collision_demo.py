@@ -120,7 +120,7 @@ def main():
     # Setup collision manager
     print("\n2. Setting up collision manager...")
     collision_manager = ShapeCollisionManager(robot)
-    robot.in_collision = collision_manager.in_collision
+    robot.set_collision_manager(collision_manager)
 
     # Define start and goal
     print("\n3. Defining start and goal configurations...")

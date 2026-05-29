@@ -298,6 +298,18 @@ The next missing piece:
 
 > How do we add time, velocity, and acceleration *safely*?
 
+## Exercises
+
+1. **Planner variance.** Run `demos/03_compare_planners.py` and note which planner is fastest. Run it 5 more times. Does the ranking change? Why? What property of sampling-based planners causes this non-determinism, and how would you make the comparison reproducible?
+
+2. **PRM in dynamic environments.** PRM builds a roadmap once and reuses it for many queries. Describe specifically what breaks if you use a prebuilt PRM roadmap after an obstacle has moved into the scene. Which part of the roadmap becomes invalid? Would a partial invalidation strategy (mark affected edges, replan only those) be correct? What would it cost?
+
+3. **Counting collision checks.** Open `planners/ompl_rrt.py`. Add an integer counter that increments each time the validity checker is called. Expose this count as an attribute on the planner after `plan()` returns. Run two planning problems — one easy (open space) and one hard (narrow passage). How do the counts differ? What does this tell you about where planning time is spent?
+
+4. **Step size sensitivity.** RRT's step size controls how far the tree extends toward each random sample. In the OMPL RRT wrapper, locate the parameter that controls this (often called `range` or `max_distance`). Double it and halve it, then compare path quality (waypoint count, path length) and planning time. Explain the tradeoff geometrically: why does a large step size hurt in cluttered environments?
+
+---
+
 Continue with:
 
 [Path vs Trajectory](05_path_vs_trajectory.md)

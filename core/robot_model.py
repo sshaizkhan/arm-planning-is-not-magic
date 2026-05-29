@@ -61,6 +61,20 @@ class RobotModel(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return a human-readable robot name string."""
+        pass
+
+    @abstractmethod
+    def link_positions(self, q: np.ndarray) -> np.ndarray:
+        """Return world-space positions of key link frames, shape (n_links, 3).
+
+        Used by collision managers to check the full robot body, not just the end-effector.
+        """
+        pass
+
     @abstractmethod
     def distance(self, q1: np.ndarray, q2: np.ndarray) -> np.floating:
         """Compute the distance between two joint configurations.
@@ -123,6 +137,20 @@ class UR5RobotModel(RobotModel):
                 self._opw_kinematics = OPWKinematics(self, params)
             except ImportError:
                 self._use_opw = False
+
+    @property
+    def name(self) -> str:
+        """Return the human-readable robot name."""
+        return "UR5"
+
+    def link_positions(self, q: np.ndarray) -> np.ndarray:
+        """Return world-space positions of key link frames, shape (n_links, 3).
+
+        Used by collision managers to check the full robot body, not just the end-effector.
+        """
+        if self._opw_kinematics is not None:
+            return self._opw_kinematics.link_positions(q)
+        raise NotImplementedError("link_positions requires OPW kinematics")
 
     def set_collision_manager(self, collision_manager):
         """
