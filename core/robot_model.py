@@ -90,16 +90,22 @@ class RobotModel(ABC):
 
 
 class UR5RobotModel(RobotModel):
-    """Robot model for the UR5 robot with OPW kinematics."""
+    """Robot model for the UR5 robot.
+
+    FK uses URDF-chain kinematics (exact match to PyBullet).
+    IK uses OPW kinematics (closed-form analytical solver).
+    """
 
     def __init__(self, use_opw: bool = True, collision_manager=None):
         """
         Initialize the robot model.
 
         Args:
-            use_opw: If True, use OPW kinematics for FK (requires OPW parameters)
-            collision_manager: Optional CollisionManager instance for collision checking.
-                              If None, in_collision always returns False.
+            use_opw: If True, also initialise OPW kinematics for use by IK
+                     solvers (e.g. IKSolver in demos). FK always uses the
+                     URDF-chain solver regardless of this flag.
+            collision_manager: Optional CollisionManager instance for collision
+                               checking. If None, in_collision always returns False.
         """
         self._dof = 6
         # UR5 actual joint limits from URDF (in radians)
@@ -129,6 +135,11 @@ class UR5RobotModel(RobotModel):
         self._opw_kinematics = None
         self._collision_manager = collision_manager
 
+        # URDF-chain FK — always available, zero approximation error.
+        from core.kinematics.urdf_kinematics import URDFKinematics
+        self._urdf_kinematics = URDFKinematics()
+
+        # OPW kinematics — kept for IK solvers only.
         if use_opw:
             try:
                 from core.kinematics.opw import OPWKinematics
@@ -144,13 +155,12 @@ class UR5RobotModel(RobotModel):
         return "UR5"
 
     def link_positions(self, q: np.ndarray) -> np.ndarray:
-        """Return world-space positions of key link frames, shape (n_links, 3).
+        """Return world-space positions of key link frames, shape (5, 3).
 
-        Used by collision managers to check the full robot body, not just the end-effector.
+        Returns base, shoulder, elbow, wrist_1, and EE positions.
+        Uses URDF-chain kinematics — exact match to PyBullet.
         """
-        if self._opw_kinematics is not None:
-            return self._opw_kinematics.link_positions(q)
-        raise NotImplementedError("link_positions requires OPW kinematics")
+        return self._urdf_kinematics.link_positions(q)
 
     def set_collision_manager(self, collision_manager):
         """
@@ -171,7 +181,10 @@ class UR5RobotModel(RobotModel):
 
     def fk(self, q: np.ndarray) -> np.ndarray:
         """
-        Forward kinematics.
+        Forward kinematics using URDF-chain solver.
+
+        Matches PyBullet exactly. OPW is NOT used here — it is kept only
+        for IK solvers that access self._opw_kinematics directly.
 
         Args:
             q: Joint configuration, shape (dof,)
@@ -179,13 +192,7 @@ class UR5RobotModel(RobotModel):
         Returns:
             End-effector pose as 4x4 transformation matrix
         """
-        if self._use_opw and self._opw_kinematics is not None:
-            return self._opw_kinematics.forward_kinematics(q)
-        else:
-            raise NotImplementedError(
-                'Forward kinematics requires OPW kinematics. '
-                'Install dependencies or set use_opw=False.'
-            )
+        return self._urdf_kinematics.forward_kinematics(q)
 
     def in_collision(self, q: np.ndarray) -> bool:
         """Check if a joint configuration is in collision.
