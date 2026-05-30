@@ -1,0 +1,185 @@
+name: Post-Merge
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type — use for manual retrigger'
+        required: true
+        type: choice
+        options: [patch, minor, major]
+
+concurrency:
+  group: post-merge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version-bump:
+    name: auto version bump
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Detect merged PR and extract bump type
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_BUMP: ${{ github.event.inputs.bump_type }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, subprocess, sys
+
+          manual = os.environ.get('MANUAL_BUMP', '').strip()
+          if manual:
+              print(f'Manual dispatch — bump type: {manual}')
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  f.write(f'VERSION_BUMP_TYPE={manual}\n')
+              sys.exit(0)
+
+          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          result = subprocess.run(
+              ['gh', 'api', f'repos/${{ github.repository }}/commits/{sha}/pulls',
+               '--jq', '.[0].number // empty'],
+              capture_output=True, text=True
+          )
+          pr_number = result.stdout.strip()
+
+          if not pr_number:
+              print('No PR found for this commit — skipping.')
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  f.write('SKIP_BUMP=true\n')
+              sys.exit(0)
+
+          print(f'Found PR #{pr_number} for commit {sha[:8]}')
+          body = subprocess.check_output(
+              ['gh', 'pr', 'view', pr_number, '--json', 'body', '-q', '.body'],
+              text=True
+          )
+
+          # Match checked checkbox: - [x] `patch` / `minor` / `major`
+          bm = re.search(r'-\s*\[x\]\s*`(patch|minor|major)`', body, re.IGNORECASE)
+          if not bm:
+              # Fallback: bare backtick label (legacy format)
+              bm = re.search(r'`(patch|minor|major)`', body, re.IGNORECASE)
+          if not bm:
+              print(f'PR #{pr_number} has no version bump selection — skipping.')
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  f.write('SKIP_BUMP=true\n')
+              sys.exit(0)
+
+          bump = bm.group(1).lower()
+          print(f'PR #{pr_number} requests bump: {bump}')
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'VERSION_BUMP_TYPE={bump}\nPR_NUMBER={pr_number}\n')
+          PYEOF
+
+      - name: Bump version in pyproject.toml
+        if: env.SKIP_BUMP != 'true'
+        run: |
+          python3 << 'PYEOF'
+          import os, re
+
+          bump = os.environ['VERSION_BUMP_TYPE']
+
+          def semver_bump(version, bump_type):
+              major, minor, patch = map(int, version.split('.'))
+              if bump_type == 'major': return f'{major+1}.0.0'
+              if bump_type == 'minor': return f'{major}.{minor+1}.0'
+              return f'{major}.{minor}.{patch+1}'
+
+          with open('pyproject.toml') as f:
+              content = f.read()
+
+          m = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not m:
+              print('No version field found in pyproject.toml — aborting.')
+              raise SystemExit(1)
+
+          current = m.group(1)
+          new_version = semver_bump(current, bump)
+          print(f'Bumping {current} → {new_version} ({bump})')
+
+          new_content = re.sub(
+              r'^(version\s*=\s*)"[^"]+"',
+              f'\\g<1>"{new_version}"',
+              content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          with open('pyproject.toml', 'w') as f:
+              f.write(new_content)
+
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'NEW_VERSION={new_version}\n')
+          PYEOF
+
+      - name: Update CHANGELOG.md from PR body
+        if: env.SKIP_BUMP != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, subprocess, datetime
+
+          pr_number = os.environ.get('PR_NUMBER', '').strip()
+          new_version = os.environ['NEW_VERSION']
+          today = datetime.date.today().isoformat()
+
+          if not pr_number:
+              print('No PR number — skipping changelog update.')
+              raise SystemExit(0)
+
+          body = subprocess.check_output(
+              ['gh', 'pr', 'view', pr_number, '--json', 'body', '-q', '.body'],
+              text=True
+          )
+
+          m = re.search(r'```changelog\s*(.*?)\s*```', body, re.DOTALL)
+          if not m or not m.group(1).strip():
+              print('No changelog entries in PR body — skipping.')
+              raise SystemExit(0)
+
+          entries = m.group(1).strip()
+          header = f'## [{new_version}] - {today}'
+          new_section = f'{header}\n\n{entries}\n'
+
+          with open('CHANGELOG.md') as f:
+              changelog = f.read()
+
+          # Insert after the first line (the title)
+          lines = changelog.split('\n')
+          insert_at = next((i for i, l in enumerate(lines) if l.startswith('## [')), 1)
+          lines.insert(insert_at, '')
+          lines.insert(insert_at, new_section)
+          with open('CHANGELOG.md', 'w') as f:
+              f.write('\n'.join(lines))
+
+          print(f'Added {new_version} section to CHANGELOG.md')
+          PYEOF
+
+      - name: Commit, tag, and push
+        if: env.SKIP_BUMP != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: bump version to ${{ env.NEW_VERSION }} [skip ci]"
+            git tag "v${{ env.NEW_VERSION }}"
+            git push
+            git push --tags
+            echo "Tagged v${{ env.NEW_VERSION }}"
+          fi
