@@ -26,9 +26,4 @@ jobs:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
       - name: Run tests (excluding OMPL)
-        run: |
-          if [ -d tests ]; then
-            pytest tests/ -m "not ompl" -v --timeout=30
-          else
-            echo "No tests/ directory yet — skipping"
-          fi
+        run: pytest tests/ -m "not ompl" -v --timeout=30

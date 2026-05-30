@@ -1,97 +1,30 @@
 """
-OMPL RRT* planner.
+OMPL RRT* (RRT-Star) planner.
 
-Optimal variant of RRT that rewires the tree to find shorter paths.
+Extends RRT with a rewiring step: after adding a node, it checks whether
+neighboring nodes are better reached through the new node. Over time, this
+converges to the optimal path.
+
+Guarantee: as samples → ∞, solution → optimal (asymptotically optimal).
+Cost: more collision checks per iteration than RRT.
+
+In practice: run with a longer timeout than RRT for a meaningful improvement.
 """
 
-import numpy as np
+from ompl import base as ob  # type: ignore
+from ompl import geometric as og  # type: ignore
 
-try:
-    from ompl import base as ob  # type: ignore
-    from ompl import geometric as og  # type: ignore
-except ImportError:
-    raise ImportError(
-        "OMPL Python bindings are required. "
-        "Install via your ROS distro or OMPL build."
-    )
+from planners.base_ompl_planner import BaseOMPLPlanner
 
 
-class OMPLRRTStarPlanner:
-    """
-    OMPL RRT* planner (optimal RRT).
-    """
+class OMPLRRTStarPlanner(BaseOMPLPlanner):
+    """Asymptotically optimal RRT with tree rewiring."""
 
-    def __init__(self, state_space, step_size=0.1):
-        self.state_space = state_space
-        self.robot = state_space.robot
-        self.dim = state_space.dim
+    def _configure_planner(self, planner, pdef):
+        pdef.setOptimizationObjective(ob.PathLengthOptimizationObjective(self.si))
 
-        # ------------------------------------------------------------------
-        # OMPL state space definition
-        # ------------------------------------------------------------------
-        self.ompl_space = ob.RealVectorStateSpace(self.dim)  # type: ignore
-        bounds = ob.RealVectorBounds(self.dim)  # type: ignore
-        lower, upper = self.robot.joint_limits()
-
-        for i in range(self.dim):
-            bounds.setLow(i, lower[i])
-            bounds.setHigh(i, upper[i])
-
-        self.ompl_space.setBounds(bounds)
-
-        # ------------------------------------------------------------------
-        # Space information
-        # ------------------------------------------------------------------
-        self.si = ob.SpaceInformation(self.ompl_space)  # type: ignore
-
-        def is_state_valid(state):
-            q = np.array([state[i] for i in range(self.dim)])
-            return self.state_space.is_valid(q)
-
-        self.si.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))  # type: ignore
-        self.si.setup()
-
-        self.step_size = step_size
-
-    def plan(self, q_start, q_goal, timeout=1.0):
-        """
-        Plan a collision-free joint-space path.
-
-        Args:
-            q_start: start configuration (dof,)
-            q_goal: goal configuration (dof,)
-            timeout: planning time in seconds
-
-        Returns:
-            List of joint configurations (path), or None if failed.
-        """
-        start = ob.State(self.ompl_space)  # type: ignore
-        goal = ob.State(self.ompl_space)  # type: ignore
-        for i in range(self.dim):
-            start[i] = q_start[i]
-            goal[i] = q_goal[i]
-
-        pdef = ob.ProblemDefinition(self.si)  # type: ignore
-        pdef.setStartAndGoalStates(start, goal)
-
-        # Set optimization objective (path length)
-        pdef.setOptimizationObjective(ob.PathLengthOptimizationObjective(self.si))  # type: ignore
-
-        planner = og.RRTstar(self.si)  # type: ignore
-        planner.setRange(self.step_size)  # type: ignore
-        planner.setProblemDefinition(pdef)
-        planner.setup()
-
-        solved = planner.solve(timeout)
-
-        if not solved:
-            return None
-
-        path_geometric = pdef.getSolutionPath()
-        path_geometric.interpolate()
-
-        path = []
-        for state in path_geometric.getStates():
-            q = np.array([state[i] for i in range(self.dim)])
-            path.append(q)
-        return path
+    def _create_planner(self):
+        planner = og.RRTstar(self.si)
+        if self.step_size is not None:
+            planner.setRange(self.step_size)
+        return planner

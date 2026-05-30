@@ -307,6 +307,46 @@ class OPWKinematics:
 
         return T
 
+    def link_positions(self, q: np.ndarray) -> np.ndarray:
+        """Return world-space positions of 5 key link frames: base, shoulder, elbow, wrist, EE."""
+        p = self.params
+        q_c = np.array([q[i] * p.sign_corrections[i] - p.offsets[i] for i in range(6)])
+
+        # Base
+        base = np.zeros(3)
+
+        # Shoulder (joint 2 origin)
+        shoulder = np.array([
+            p.a1 * np.cos(q_c[0]) - p.b * np.sin(q_c[0]),
+            p.a1 * np.sin(q_c[0]) + p.b * np.cos(q_c[0]),
+            p.c1,
+        ])
+
+        # Elbow (joint 3 origin — end of upper arm link)
+        elbow_x1 = p.a1 + p.c2 * np.sin(q_c[1])
+        elbow = np.array([
+            elbow_x1 * np.cos(q_c[0]) - p.b * np.sin(q_c[0]),
+            elbow_x1 * np.sin(q_c[0]) + p.b * np.cos(q_c[0]),
+            p.c1 + p.c2 * np.cos(q_c[1]),
+        ])
+
+        # Wrist center (spherical wrist intersection point)
+        psi3 = np.arctan2(p.a2, p.c3)
+        k = np.sqrt(p.a2 ** 2 + p.c3 ** 2)
+        cx1 = p.c2 * np.sin(q_c[1]) + k * np.sin(q_c[1] + q_c[2] + psi3) + p.a1
+        cy1 = p.b
+        cz1 = p.c2 * np.cos(q_c[1]) + k * np.cos(q_c[1] + q_c[2] + psi3)
+        wrist = np.array([
+            cx1 * np.cos(q_c[0]) - cy1 * np.sin(q_c[0]),
+            cx1 * np.sin(q_c[0]) + cy1 * np.cos(q_c[0]),
+            cz1 + p.c1,
+        ])
+
+        # End-effector
+        ee = self.forward_kinematics(q)[:3, 3]
+
+        return np.array([base, shoulder, elbow, wrist, ee])
+
     def _pose_dict_to_matrix(self, pose):
         """Convert pose dict to 4x4 transformation matrix."""
         T = np.eye(4)

@@ -223,6 +223,18 @@ Read more here:
 
 [Configuration Space - Tufts University](https://www.cs.tufts.edu/comp/150IR/hw/cspace.html)
 
+## Exercises
+
+1. **C-space dimensions.** A 2-DOF arm has C-space ℝ². What is the C-space of a 6-DOF UR5? List each joint's physical meaning (base rotation, shoulder, elbow, etc.) and look up its actual limit range from `core/robot_model.py`. What is the total volume of the bounded C-space in radians⁶?
+
+2. **Sampling bias.** In `core/state_space.py`, modify `sample_uniform()` to only sample configurations where joint 1 (the base rotation) is positive — i.e., clamp `lower[0]` to `max(lower[0], 0)` for sampling only. Run a planning demo before and after. How does restricting the base joint affect the planner's ability to reach goals on the left side of the workspace? Why does this happen geometrically in C-space?
+
+3. **C-obs is not a simple shape.** If a solid sphere sits at the center of the UR5's workspace, describe (or sketch) what the forbidden region looks like in C-space for joint 1 and joint 2. Is it a circle? Is it a convex region? Why does a simple Cartesian obstacle become a complex shape in joint space? (Hint: think about which `(θ₁, θ₂)` pairs cause a link to pass through the sphere.)
+
+4. **Dimensionality sanity check.** The table in section 8 shows that a 6-DOF arm with N=100 discretization per joint yields 10¹² states. Estimate how much memory (in GB) it would take to store a single bit per state. Compare that to storing a 1000-node RRT tree. What does this tell you about why grid-based planners are infeasible for robot arms?
+
+---
+
 Continue with:
 
 [Inverse Kinematics (IK) vs Motion Planning](02_ik_vs_planning.md)

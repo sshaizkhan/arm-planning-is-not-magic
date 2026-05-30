@@ -195,7 +195,7 @@ def main():
     print("\nSetting up robot and state space...")
     robot = UR5RobotModel()
     collision_manager = NullCollisionManager()
-    robot.in_collision = collision_manager.in_collision
+    robot.set_collision_manager(collision_manager)
     state_space = JointStateSpace(robot)
 
     q_start = np.array([0.0, 0.927747217, 0.0, 0.642, 0.0, 0.0])
