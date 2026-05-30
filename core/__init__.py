@@ -15,7 +15,6 @@ from core.collision_manager import (
     Cylinder,
     NullCollisionManager,
     ShapeCollisionManager,
-    SimpleSelfCollisionManager,
     Sphere,
 )
 from core.robot_model import RobotModel, UR5RobotModel
@@ -35,5 +34,4 @@ __all__ = [
     "Cylinder",
     "NullCollisionManager",
     "ShapeCollisionManager",
-    "SimpleSelfCollisionManager",
 ]

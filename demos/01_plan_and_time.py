@@ -27,7 +27,7 @@ robot = UR5RobotModel()  # or any 6DOF industrial robot
 # 2. State space and collision manager
 # ---------------------------
 collision_manager = NullCollisionManager()
-robot.in_collision = collision_manager.in_collision  # delegate
+robot.set_collision_manager(collision_manager)
 state_space = JointStateSpace(robot)
 
 # ---------------------------

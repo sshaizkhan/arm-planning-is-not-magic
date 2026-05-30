@@ -193,6 +193,7 @@ def main():
 
     # Update collision checker with final obstacles
     collision_check = viz.create_collision_checker(obstacle_ids)
+    # PyBullet collision uses a closure, not a CollisionManager instance
     robot.in_collision = collision_check
 
     # ---------------------------

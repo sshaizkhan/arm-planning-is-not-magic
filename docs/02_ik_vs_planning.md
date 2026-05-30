@@ -261,6 +261,18 @@ The next missing piece is obvious:
 
 That is the job of **collision checking**.
 
+## Exercises
+
+1. **Counting IK solutions.** Call `OPWKinematics.inverse_kinematics()` for a pose directly above the robot (high Z, zero XY offset, wrist pointing straight down). How many valid solutions are returned? Now tilt the wrist 45 degrees. Does the count change? What geometric property of the arm determines the maximum number of discrete solutions?
+
+2. **When IK fails on reachable poses.** IK can return no solutions even when a pose is geometrically reachable. Give two distinct reasons this can happen. (Hint: one involves the solution falling outside joint limits, the other involves the numerical structure of the solver.) For each reason, describe a concrete UR5 configuration that would trigger it.
+
+3. **IK interpolation is not planning.** Take two reachable poses that are close in Cartesian space. Call IK on each, select the closest solutions by joint distance, and linearly interpolate between them in joint space. Write a test that checks whether every interpolated configuration is collision-free using the robot's `in_collision()` method. How often does this "naive path" fail the collision check, and why?
+
+4. **IK solution selection matters.** A single Cartesian goal can have up to 8 IK solutions for a 6-DOF arm. Write a function that takes a current joint configuration `q_current` and a list of IK solutions, and returns the solution that minimizes joint-space distance to `q_current`. Run it on a demo scene. Does the closest-by-joints solution always correspond to the most intuitive motion?
+
+---
+
 Continue with:
 
 [Collision Checking](03_collision_checking.md)

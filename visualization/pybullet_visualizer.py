@@ -788,6 +788,96 @@ class PyBulletVisualizer:
 
         return check_collision
 
+    def add_text(
+        self,
+        text: str,
+        position: Tuple[float, float, float],
+        color: Tuple[float, float, float] = (1, 1, 1),
+        size: float = 1.5,
+        lifetime: float = 0,
+    ) -> int:
+        """Add a 3D text label to the scene. Returns debug text ID."""
+        return p.addUserDebugText(
+            text,
+            position,
+            textColorRGB=color,
+            textSize=size,
+            lifeTime=lifetime,
+        )
+
+    def visualize_multi_planner_trajectories(
+        self,
+        planner_results: dict,
+        fk_func=None,
+        show_labels: bool = True,
+        line_width: float = 3,
+        sample_every: int = 3,
+    ) -> dict:
+        """
+        Draw all planner trajectories simultaneously in PyBullet with different colors.
+
+        Args:
+            planner_results: Dict mapping planner names to result dicts with 'trajectory' key
+            fk_func: FK function returning 4x4 matrix. If None, uses PyBullet's internal FK.
+            show_labels: If True, add text label at midpoint of each trajectory
+            line_width: Line width for trajectories
+            sample_every: Sample every N points for performance
+
+        Returns:
+            Dict mapping planner names to their debug line IDs
+        """
+        colors = [
+            (0.12, 0.47, 0.71), (1.00, 0.50, 0.05), (0.17, 0.63, 0.17),
+            (0.84, 0.15, 0.16), (0.58, 0.40, 0.74), (0.55, 0.34, 0.29),
+            (0.89, 0.47, 0.76),
+        ]
+
+        all_line_ids = {}
+
+        for idx, (planner_name, result) in enumerate(planner_results.items()):
+            if result.get('trajectory') is None:
+                continue
+
+            color = colors[idx % len(colors)]
+            trajectory = result['trajectory']
+
+            sampled = trajectory[::sample_every]
+            if not np.array_equal(sampled[-1], trajectory[-1]):
+                sampled = np.vstack([sampled, trajectory[-1]])
+
+            ee_positions = []
+            for q in sampled:
+                if fk_func is not None:
+                    pose = fk_func(q)
+                    ee_positions.append(pose[:3, 3])
+                else:
+                    original = [p.getJointState(self.robot_id, i)[0] for i in self.joint_indices]
+                    self.set_joint_positions(q)
+                    ee_state = p.getLinkState(self.robot_id, self.ee_link_index)
+                    ee_positions.append(ee_state[0])
+                    for i, joint_idx in enumerate(self.joint_indices):
+                        p.resetJointState(self.robot_id, joint_idx, original[i])
+
+            line_ids = []
+            for i in range(len(ee_positions) - 1):
+                lid = p.addUserDebugLine(
+                    ee_positions[i], ee_positions[i + 1],
+                    lineColorRGB=color, lineWidth=line_width, lifeTime=0,
+                )
+                line_ids.append(lid)
+
+            if show_labels and ee_positions:
+                mid = len(ee_positions) // 2
+                label_pos = list(ee_positions[mid])
+                label_pos[2] += 0.05 * (idx + 1)
+                tid = self.add_text(planner_name, label_pos, color=color, size=1.2)
+                line_ids.append(tid)
+
+            all_line_ids[planner_name] = line_ids
+            self._path_line_ids.extend(line_ids)
+
+        return all_line_ids
+
     def close(self):
         """Close PyBullet connection."""
         p.disconnect(self.client_id)

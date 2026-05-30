@@ -227,6 +227,18 @@ The next question:
 
 > How do we compute the *best possible* timing along a path?
 
+## Exercises
+
+1. **Velocity limits at the extreme.** In `parameterization/toppra_parameterization.py`, set `v_max = np.ones(6) * 100` (100 rad/s — far beyond any real robot). Run it on a short path. Does the trajectory duration decrease significantly compared to realistic limits? Where does the bottleneck shift when velocity is unconstrained? Look at the acceleration profile to find out.
+
+2. **Why linear interpolation fails.** Suppose you have `q_start` and `q_goal` and you naively compute velocity as `v = (q_goal - q_start) / T` for some chosen duration `T`. Give a concrete counterexample with numbers: choose a `q_start`, `q_goal`, and `T` such that this velocity violates the UR5's acceleration limits at the start of motion, even though the average velocity is within bounds.
+
+3. **Can time-parameterization make a safe path unsafe?** Section 10 states that path parameterization does not fix collisions. But could it introduce a new collision? Describe the conditions under which a path that is collision-free at the planner's check resolution becomes unsafe after time parameterization is applied and a real controller executes it. (Hint: think about controller interpolation between sparse waypoints.)
+
+4. **Path parameter vs time.** Write a short Python snippet that takes a 10-waypoint path and computes `s` (arc-length parameterization, normalized to [0,1]) for each waypoint. Then plot `q[joint_0]` against `s` and against waypoint index. Why do these two plots look different, and which one is more meaningful as input to TOPP-RA?
+
+---
+
 Continue with:
 
 [Time-Optimal Path Parameterization (TOPP-RA)](06_toppra.md)

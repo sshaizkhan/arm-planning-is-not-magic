@@ -20,7 +20,7 @@ from planners.ompl_rrt import OMPLRRTPlanner
 # ---------------------------
 robot = UR5RobotModel()
 collision_manager = NullCollisionManager()
-robot.in_collision = collision_manager.in_collision
+robot.set_collision_manager(collision_manager)
 state_space = JointStateSpace(robot)
 
 # ---------------------------

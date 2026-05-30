@@ -1,92 +1,22 @@
 """
-OMPL KPIECE1 planner.
+OMPL KPIECE1 (Kinodynamic Planning by Interior-Exterior Cell Exploration) planner.
 
-Kinodynamic Planning by Interior-Exterior Cell Exploration.
-Good for high-dimensional spaces with narrow passages.
+KPIECE1 divides C-space into cells and guides exploration toward cells with
+low coverage. This helps it find paths through narrow passages where uniform
+sampling fails.
+
+Use this when:
+- High-dimensional spaces
+- Narrow passages or tight constraints
 """
 
-import numpy as np
+from ompl import geometric as og  # type: ignore
 
-try:
-    from ompl import base as ob  # type: ignore
-    from ompl import geometric as og  # type: ignore
-except ImportError:
-    raise ImportError(
-        "OMPL Python bindings are required. "
-        "Install via your ROS distro or OMPL build."
-    )
+from planners.base_ompl_planner import BaseOMPLPlanner
 
 
-class OMPLKPIECE1Planner:
-    """
-    OMPL KPIECE1 planner.
-    """
+class OMPLKPIECE1Planner(BaseOMPLPlanner):
+    """Cell-based exploration. Good for narrow passages."""
 
-    def __init__(self, state_space):
-        self.state_space = state_space
-        self.robot = state_space.robot
-        self.dim = state_space.dim
-
-        # ------------------------------------------------------------------
-        # OMPL state space definition
-        # ------------------------------------------------------------------
-        self.ompl_space = ob.RealVectorStateSpace(self.dim)  # type: ignore
-        bounds = ob.RealVectorBounds(self.dim)  # type: ignore
-        lower, upper = self.robot.joint_limits()
-
-        for i in range(self.dim):
-            bounds.setLow(i, lower[i])
-            bounds.setHigh(i, upper[i])
-
-        self.ompl_space.setBounds(bounds)
-
-        # ------------------------------------------------------------------
-        # Space information
-        # ------------------------------------------------------------------
-        self.si = ob.SpaceInformation(self.ompl_space)  # type: ignore
-
-        def is_state_valid(state):
-            q = np.array([state[i] for i in range(self.dim)])
-            return self.state_space.is_valid(q)
-
-        self.si.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))  # type: ignore
-        self.si.setup()
-
-    def plan(self, q_start, q_goal, timeout=1.0):
-        """
-        Plan a collision-free joint-space path.
-
-        Args:
-            q_start: start configuration (dof,)
-            q_goal: goal configuration (dof,)
-            timeout: planning time in seconds
-
-        Returns:
-            List of joint configurations (path), or None if failed.
-        """
-        start = ob.State(self.ompl_space)  # type: ignore
-        goal = ob.State(self.ompl_space)  # type: ignore
-        for i in range(self.dim):
-            start[i] = q_start[i]
-            goal[i] = q_goal[i]
-
-        pdef = ob.ProblemDefinition(self.si)  # type: ignore
-        pdef.setStartAndGoalStates(start, goal)
-
-        planner = og.KPIECE1(self.si)  # type: ignore
-        planner.setProblemDefinition(pdef)
-        planner.setup()
-
-        solved = planner.solve(timeout)
-
-        if not solved:
-            return None
-
-        path_geometric = pdef.getSolutionPath()
-        path_geometric.interpolate()
-
-        path = []
-        for state in path_geometric.getStates():
-            q = np.array([state[i] for i in range(self.dim)])
-            path.append(q)
-        return path
+    def _create_planner(self):
+        return og.KPIECE1(self.si)

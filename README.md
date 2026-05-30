@@ -59,7 +59,8 @@ Each layer:
 ```bash
 arm-planning-is-not-magic/
 │
-├── docs/                      # Concepts, diagrams, explanations
+├── docs/                      # Concepts, diagrams, explanations (read in order)
+│   ├── 00_setup.md
 │   ├── 01_configuration_space.md
 │   ├── 02_ik_vs_planning.md
 │   ├── 03_collision_checking.md
@@ -67,24 +68,35 @@ arm-planning-is-not-magic/
 │   ├── 05_path_vs_trajectory.md
 │   ├── 06_toppra.md
 │   ├── 07_ruckig_vs_toppra.md
-│   └── ...
+│   ├── 08_ceres_and_trajectory_optimization.md
+│   ├── 09_siedel_and_linear_programming.md
+│   ├── 10_controllers_and_execution.md
+│   └── 11_path_smoothing.md   # Each doc ends with Exercises
+│
+├── notebooks/                 # Interactive Jupyter notebooks
+│   ├── 01_cspace_2dof.ipynb   # Visualize C-space for a 2-DOF arm
+│   ├── 02_ik_solutions.ipynb  # All 8 OPW IK solutions side-by-side
+│   ├── 03_rrt_step_by_step.ipynb  # Build RRT from scratch in 2D
+│   └── 04_timing_comparison.ipynb # TOPP-RA vs Ruckig profiles
 │
 ├── core/                      # Core abstractions
-│   ├── robot_model.py         # Robot interface + UR5 implementation
+│   ├── robot_model.py         # RobotModel ABC + UR5 implementation
 │   ├── state_space.py         # C-space sampling, validation, interpolation
-│   ├── collision_manager.py   # Collision shapes and checking
+│   ├── collision_manager.py   # Collision shapes and multi-link checking
+│   ├── path_smoothing.py      # Shortcutting + spline smoothing
 │   └── kinematics/
-│       ├── opw.py             # OPW closed-form IK (8 solutions)
-│       └── opw_parameters.py  # Robot-specific kinematic parameters
+│       ├── opw.py             # OPW closed-form IK/FK (8 solutions, link positions)
+│       └── opw_parameters.py  # Robot-specific kinematic parameters (UR3/5/10, KUKA, ABB, FANUC)
 │
 ├── planners/                  # OMPL-based sampling planners
-│   ├── ompl_rrt.py            # RRT (single-tree)
+│   ├── base_ompl_planner.py   # Base class — all planners inherit this
+│   ├── ompl_rrt.py            # RRT (single-tree, ~20 lines)
 │   ├── ompl_rrt_connect.py    # RRT-Connect (bidirectional)
 │   ├── ompl_rrt_star.py       # RRT* (asymptotically optimal)
-│   ├── ompl_prm.py            # PRM (roadmap)
+│   ├── ompl_prm.py            # PRM (roadmap, multi-query)
 │   ├── ompl_kpiece1.py        # KPIECE1 (cell decomposition)
 │   ├── ompl_est.py            # EST (expansive trees)
-│   └── ompl_bitrrt.py         # BiTRRT (bidirectional transition)
+│   └── ompl_bitrrt.py         # LBTRRT (lazy bidirectional)
 │
 ├── parameterization/          # Path → Trajectory conversion
 │   ├── toppra_parameterization.py   # TOPP-RA (time-optimal, offline)
@@ -95,15 +107,26 @@ arm-planning-is-not-magic/
 │   ├── 02_toppra_vs_ruckig.py # Compare parameterizers visually
 │   ├── 03_compare_planners.py # Benchmark all 7 OMPL planners
 │   ├── 04_collision_demo.py   # Planning with obstacles
-│   └── 05_visualization_demo.py # Visualization examples
+│   ├── 05_visualization_demo.py # Matplotlib visualization
+│   └── 06_pybullet_visualization.py # 3D PyBullet visualization
 │
 ├── visualization/             # Plotting and animation utilities
 │   ├── trajectory_plots.py    # Joint-space plots (pos, vel, acc)
 │   ├── path_3d.py             # End-effector 3D visualization
 │   └── robot_visualizer.py    # Stick-figure arm animation
 │
-├── docker/                    # Container setup
-└── requirements.txt
+├── tests/                     # pytest suite
+│   ├── test_robot_model.py
+│   ├── test_state_space.py
+│   ├── test_collision_manager.py
+│   ├── test_parameterization.py
+│   └── test_planners.py       # marked @pytest.mark.ompl
+│
+├── docker/                    # Container setup (includes OMPL)
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── requirements.txt
+└── requirements-dev.txt
 ```
 
 
@@ -124,17 +147,37 @@ It **is**:
 
 ## Getting Started
 
-### Read the docs (in order)
+See [`docs/00_setup.md`](docs/00_setup.md) for full installation instructions (including OMPL, which is not pip-installable).
 
 ```bash
-docs/01_configuration_space.md   # What is C-space?
-docs/02_ik_vs_planning.md        # Why IK ≠ planning
-docs/03_collision_checking.md    # How collision works
-docs/04_sampling_based_planning.md  # RRT, PRM, etc.
-docs/05_path_vs_trajectory.md    # Path vs trajectory
-docs/06_toppra.md                # Time-optimal parameterization
-docs/07_ruckig_vs_toppra.md      # Industry reality
+pip install -e .
 ```
+
+### Read the docs (in order)
+
+Each doc ends with **Exercises** — do them before moving on.
+
+```bash
+docs/01_configuration_space.md      # What is C-space?
+docs/02_ik_vs_planning.md           # Why IK ≠ planning
+docs/03_collision_checking.md       # How collision works
+docs/04_sampling_based_planning.md  # RRT, PRM, etc.
+docs/05_path_vs_trajectory.md       # Path vs trajectory
+docs/06_toppra.md                   # Time-optimal parameterization
+docs/07_ruckig_vs_toppra.md         # Industry reality
+docs/11_path_smoothing.md           # Post-processing raw paths
+```
+
+### Run the interactive notebooks
+
+```bash
+jupyter notebook notebooks/
+```
+
+- `01_cspace_2dof.ipynb` — visualize C-space obstacles live
+- `02_ik_solutions.ipynb` — see all 8 IK solutions side-by-side
+- `03_rrt_step_by_step.ipynb` — build RRT from scratch in 2D
+- `04_timing_comparison.ipynb` — TOPP-RA vs Ruckig profiles
 
 ### Run the demos
 
@@ -150,6 +193,19 @@ python demos/03_compare_planners.py --parameterizer toppra
 
 # Planning with collision obstacles
 python demos/04_collision_demo.py
+
+# 3D PyBullet visualization (requires pybullet)
+python demos/06_pybullet_visualization.py
+```
+
+### Run the tests
+
+```bash
+# Without OMPL (fast):
+pytest tests/ -m "not ompl"
+
+# Full suite (requires OMPL installed):
+pytest tests/
 ```
 
 ### Quick code example

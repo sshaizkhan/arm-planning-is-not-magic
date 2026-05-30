@@ -296,6 +296,18 @@ The next question is inevitable:
 
 > How do we move through this space efficiently?
 
+## Exercises
+
+1. **5-link blind spot.** Open `core/collision_manager.py`. The `ShapeCollisionManager` checks positions of 5 key link frames. Name a robot posture where all 5 link positions clear every obstacle yet the robot is still in collision. (Hint: think about the volume swept between checked frames — a long forearm link between two checked points can arc through an obstacle without either endpoint being inside it.)
+
+2. **Add a Capsule shape.** A capsule is a cylinder with hemispherical caps — commonly used for arm links because it tightly fits cylindrical geometry. Design the interface: what constructor arguments does a `Capsule` need? What methods must it implement to plug into the existing collision system (`contains_point()`, or distance-based)? Write a stub class and a unit test that verifies a point at the capsule center is in collision and a point 10 meters away is not.
+
+3. **Why return True on FK failure.** In `core/collision_manager.py`, when forward kinematics throws an exception, the manager returns `True` (assume collision) rather than `False` (assume free). Explain the safety reasoning behind this decision. Give a concrete scenario where returning `False` on an FK error would cause a physical robot to execute an unsafe motion. Now give a scenario where returning `True` causes the planner to spuriously fail. Which failure mode is preferable in a real system?
+
+4. **Resolution and false negatives.** The edge validity check interpolates between `q1` and `q2` at a fixed step size. Construct a test case (two configs and an obstacle) where a step size of `0.1` rad misses a collision that a step size of `0.01` rad catches. What is the maximum obstacle "width" (in C-space radians) that can be missed at a given step size, and how does this relate to the robot's link geometry in workspace?
+
+---
+
 Continue with:
 
 [Sampling-Based Planning](04_sampling_based_planning.md)
