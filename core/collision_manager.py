@@ -12,9 +12,10 @@ not a planner responsibility.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from core.robot_model import RobotModel
 
 import numpy as np
+
+from core.robot_model import RobotModel
 
 
 class CollisionShape(ABC):

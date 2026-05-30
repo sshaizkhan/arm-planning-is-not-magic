@@ -8,11 +8,12 @@ Requirements:
     pybullet>=3.2.0
 """
 
-from typing import Optional, List, Tuple, Callable
-import numpy as np
-import tempfile
 import os
+import tempfile
 from pathlib import Path
+from typing import Callable, List, Optional, Tuple
+
+import numpy as np
 
 try:
     import pybullet as p

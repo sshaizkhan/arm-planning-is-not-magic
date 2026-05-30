@@ -10,11 +10,11 @@ Demonstrates:
 
 import numpy as np
 
+from core.collision_manager import Box, Cylinder, ShapeCollisionManager, Sphere
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import ShapeCollisionManager, Box, Sphere, Cylinder
-from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
+from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 
 
 def add_collision_objects_at_pose(collision_manager, robot, q, create_collision=True):

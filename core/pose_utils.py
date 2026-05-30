@@ -4,8 +4,9 @@ This module provides utilities for working with poses, rotations, and
 transformations commonly used in robotics.
 """
 
+from typing import Callable, Optional, Union
+
 import numpy as np
-from typing import Union, Optional, List, Callable
 
 
 def quaternion_to_rotation_matrix(quat: np.ndarray) -> np.ndarray:

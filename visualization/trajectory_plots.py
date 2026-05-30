@@ -13,8 +13,9 @@ These plots are essential for:
 """
 
 from typing import List, Optional, Tuple
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.figure import Figure
 
 

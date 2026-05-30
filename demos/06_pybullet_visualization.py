@@ -15,17 +15,18 @@ Features demonstrated:
 Run with: python demos/06_pybullet_visualization.py
 """
 
-import numpy as np
 import time
 
-from core.robot_model import UR5RobotModel
-from core.state_space import JointStateSpace
-from core.path_smoothing import smooth_path
-from core.pose_utils import IKSolver, make_transform
+import numpy as np
+
 from core.kinematics.opw import OPWKinematics
 from core.kinematics.opw_parameters import OPWParameters
-from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
+from core.path_smoothing import smooth_path
+from core.pose_utils import IKSolver
+from core.robot_model import UR5RobotModel
+from core.state_space import JointStateSpace
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
+from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 
 try:
     from visualization.pybullet_visualizer import PyBulletVisualizer
