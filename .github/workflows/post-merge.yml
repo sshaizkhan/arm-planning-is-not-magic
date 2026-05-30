@@ -48,12 +48,21 @@ jobs:
               sys.exit(0)
 
           sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          result = subprocess.run(
-              ['gh', 'api', f'repos/${{ github.repository }}/commits/{sha}/pulls',
-               '--jq', '.[0].number // empty'],
-              capture_output=True, text=True
-          )
-          pr_number = result.stdout.strip()
+
+          # Retry up to 5 times — the GitHub API can lag a few seconds after merge
+          pr_number = ''
+          for attempt in range(5):
+              result = subprocess.run(
+                  ['gh', 'api',
+                   '--header', 'Accept: application/vnd.github+json',
+                   f'repos/${{ github.repository }}/commits/{sha}/pulls',
+                   '--jq', '.[0].number // empty'],
+                  capture_output=True, text=True
+              )
+              pr_number = result.stdout.strip()
+              if pr_number:
+                  break
+              import time; time.sleep(3)
 
           if not pr_number:
               print('No PR found for this commit — skipping.')
