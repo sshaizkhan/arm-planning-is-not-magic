@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [0.2.0] - 2026-05-30
 
+- Fix UR5 FK: replace OPW approximation with URDFKinematics that walks the exact URDF joint chain
+- Add core/kinematics/urdf_kinematics.py with URDFKinematics class
+- UR5RobotModel.fk() and link_positions() now match PyBullet at floating-point precision (0.0000mm error)
+- Correct OPW parameters: a1=0.0, b=0.01615, offsets=[0,-π/2,0,0,0,0], sign_corrections=[1,1,-1,1,1,1]
+- OPW retained as _opw_kinematics for IKSolver use in demos
 - Add .github/PULL_REQUEST_TEMPLATE.md with description, type checkbox, changelog block, and testing checklist
 - Add .github/workflows/post-merge.yml: auto-bumps version in pyproject.toml and appends changelog entries on merge to master
 - Post-merge workflow supports manual retrigger via workflow_dispatch
