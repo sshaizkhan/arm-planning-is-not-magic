@@ -12,14 +12,14 @@ Available planners:
 For creating custom planners, inherit from BaseOMPLPlanner.
 """
 
+from planners.base_ompl_planner import BaseOMPLPlanner
+from planners.ompl_bitrrt import OMPLBiTRRTPlanner
+from planners.ompl_est import OMPLESTPlanner
+from planners.ompl_kpiece1 import OMPLKPIECE1Planner
+from planners.ompl_prm import OMPLPRMPlanner
 from planners.ompl_rrt import OMPLRRTPlanner
 from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 from planners.ompl_rrt_star import OMPLRRTStarPlanner
-from planners.ompl_prm import OMPLPRMPlanner
-from planners.ompl_kpiece1 import OMPLKPIECE1Planner
-from planners.ompl_est import OMPLESTPlanner
-from planners.ompl_bitrrt import OMPLBiTRRTPlanner
-from planners.base_ompl_planner import BaseOMPLPlanner
 
 __all__ = [
     # Base class for custom planners

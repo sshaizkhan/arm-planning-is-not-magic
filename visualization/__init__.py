@@ -11,13 +11,6 @@ Usage:
     from visualization import PyBulletVisualizer
 """
 
-from visualization.trajectory_plots import (
-    plot_joint_trajectory,
-    plot_joint_comparison,
-    plot_velocity_profile,
-    plot_acceleration_profile,
-    plot_phase_portrait,
-)
 from visualization.path_3d import (
     plot_ee_path_3d,
     plot_ee_path_with_waypoints,
@@ -25,6 +18,13 @@ from visualization.path_3d import (
 from visualization.robot_visualizer import (
     RobotVisualizer,
     animate_trajectory,
+)
+from visualization.trajectory_plots import (
+    plot_acceleration_profile,
+    plot_joint_comparison,
+    plot_joint_trajectory,
+    plot_phase_portrait,
+    plot_velocity_profile,
 )
 
 try:

@@ -7,23 +7,24 @@ comparison metrics in an ASCII table.
 """
 
 import argparse
-import numpy as np
 import time
 
+import numpy as np
+
+from core.collision_manager import NullCollisionManager
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import NullCollisionManager
-from planners import (
-    OMPLRRTPlanner,
-    OMPLRRTConnectPlanner,
-    OMPLRRTStarPlanner,
-    OMPLPRMPlanner,
-    OMPLKPIECE1Planner,
-    OMPLESTPlanner,
-    OMPLBiTRRTPlanner,
-)
-from parameterization.toppra_parameterization import ToppraTimeParameterizer
 from parameterization.ruckig_parameterization import RuckigTimeParameterizer
+from parameterization.toppra_parameterization import ToppraTimeParameterizer
+from planners import (
+    OMPLBiTRRTPlanner,
+    OMPLESTPlanner,
+    OMPLKPIECE1Planner,
+    OMPLPRMPlanner,
+    OMPLRRTConnectPlanner,
+    OMPLRRTPlanner,
+    OMPLRRTStarPlanner,
+)
 
 
 def compute_path_length(path):

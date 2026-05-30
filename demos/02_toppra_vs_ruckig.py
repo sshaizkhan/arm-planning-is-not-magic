@@ -5,15 +5,15 @@ Shows joint positions, velocities, accelerations, and jerk for both
 time parameterizations.
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+from core.collision_manager import NullCollisionManager
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import NullCollisionManager
-from planners.ompl_rrt import OMPLRRTPlanner
-from parameterization.toppra_parameterization import ToppraTimeParameterizer
 from parameterization.ruckig_parameterization import RuckigTimeParameterizer
+from parameterization.toppra_parameterization import ToppraTimeParameterizer
+from planners.ompl_rrt import OMPLRRTPlanner
 
 # ---------------------------
 # 1. Robot setup

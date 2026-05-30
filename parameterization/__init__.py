@@ -9,8 +9,8 @@ Key distinction:
 - Trajectory: time-explicit, q(t) with velocity/acceleration constraints
 """
 
-from parameterization.toppra_parameterization import ToppraTimeParameterizer
 from parameterization.ruckig_parameterization import RuckigTimeParameterizer
+from parameterization.toppra_parameterization import ToppraTimeParameterizer
 
 __all__ = [
     "ToppraTimeParameterizer",

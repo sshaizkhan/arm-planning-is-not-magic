@@ -12,11 +12,11 @@ This demo shows the full pipeline (no visualization):
 
 import numpy as np
 
+from core.collision_manager import NullCollisionManager
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import NullCollisionManager
-from planners.ompl_rrt import OMPLRRTPlanner
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
+from planners.ompl_rrt import OMPLRRTPlanner
 
 # ---------------------------
 # 1. Define robot

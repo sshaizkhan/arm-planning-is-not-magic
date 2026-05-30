@@ -9,12 +9,13 @@ as a stick figure, useful for:
 For production visualization, consider PyBullet or MuJoCo.
 """
 
-from typing import Optional, List, Callable, Tuple
-import numpy as np
+from typing import List, Optional, Tuple
+
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.figure import Figure
+import numpy as np
 from matplotlib.animation import FuncAnimation
+from matplotlib.figure import Figure
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class RobotVisualizer:
@@ -98,7 +99,7 @@ class RobotVisualizer:
 
         # Joints 4, 5, 6 - Wrist (simplified as small offsets)
         # For visualization, we'll add small segments
-        c4, s4 = np.cos(q[3]), np.sin(q[3])
+        _c4, _s4 = np.cos(q[3]), np.sin(q[3])
         wrist_offset = np.array([
             c1 * d4 * c23,
             s1 * d4 * c23,

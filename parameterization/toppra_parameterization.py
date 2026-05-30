@@ -1,10 +1,11 @@
 from typing import List, Tuple
+
 import numpy as np
 
 try:
     import toppra as ta
-    import toppra.constraint as constraint
     import toppra.algorithm as algo
+    import toppra.constraint as constraint
 except ImportError as e:
     raise ImportError(
         "TOPP-RA is required. Install via: pip install toppra"

@@ -13,32 +13,30 @@ Plots are shown interactively one by one. Close each plot window to see the next
 Run with: python demos/05_visualization_demo.py
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+from core.collision_manager import NullCollisionManager
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
-from core.collision_manager import NullCollisionManager
-from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
-from parameterization.toppra_parameterization import ToppraTimeParameterizer
 from parameterization.ruckig_parameterization import RuckigTimeParameterizer
-
-from visualization.trajectory_plots import (
-    plot_joint_trajectory,
-    plot_joint_comparison,
-    plot_velocity_profile,
-    plot_acceleration_profile,
-    plot_phase_portrait,
-)
+from parameterization.toppra_parameterization import ToppraTimeParameterizer
+from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
 from visualization.path_3d import (
+    plot_ee_components,
     plot_ee_path_3d,
     plot_ee_path_with_waypoints,
-    plot_ee_components,
 )
-
 from visualization.robot_visualizer import (
     RobotVisualizer,
     animate_trajectory,
+)
+from visualization.trajectory_plots import (
+    plot_acceleration_profile,
+    plot_joint_comparison,
+    plot_joint_trajectory,
+    plot_phase_portrait,
+    plot_velocity_profile,
 )
 
 

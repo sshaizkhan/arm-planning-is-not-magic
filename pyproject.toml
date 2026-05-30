@@ -5,8 +5,50 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "arm-planning-is-not-magic"
 version = "0.1.0"
-description = "Motion planning library for robotic arms"
-requires-python = ">=3.8"
+description = "A from-first-principles walkthrough of robot arm motion planning"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.20.0",
+    "toppra>=0.2.0",
+    "ruckig>=0.11.0",
+    "matplotlib>=3.5.0",
+]
 
-[tool.setuptools]
-packages = ["core", "planners", "parameterization", "demos", "visualization"]
+[project.optional-dependencies]
+pybullet = ["pybullet>=3.2.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-timeout",
+    "ruff>=0.4.0",
+    "mypy>=1.0",
+    "jupyter",
+    "ipykernel",
+    "pybullet>=3.2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "planners*", "parameterization*", "visualization*", "demos*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_return_any = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "ompl: requires OMPL Python bindings",
+    "slow: tests that take more than 1 second",
+]
+timeout = 30
