@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-05-30
+
+- Add .github/PULL_REQUEST_TEMPLATE.md with description, type checkbox, changelog block, and testing checklist
+- Add .github/workflows/post-merge.yml: auto-bumps version in pyproject.toml and appends changelog entries on merge to master
+- Post-merge workflow supports manual retrigger via workflow_dispatch
+
+
 ## [Unreleased]
 
 ### Changed
