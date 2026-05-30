@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-05-30
+
+- Fix post-merge workflow: retry PR detection up to 5x with 3s delay to handle GitHub API lag
+- Backfill PR6 FK fix changelog entries into [0.2.0] section
+
+
 ## [0.2.0] - 2026-05-30
 
 - Fix UR5 FK: replace OPW approximation with URDFKinematics that walks the exact URDF joint chain
