@@ -17,7 +17,6 @@ Run with: python3 demos/08_meshcat_visualization.py
 Then open the URL printed to the terminal in your browser.
 """
 
-import time
 
 import numpy as np
 
