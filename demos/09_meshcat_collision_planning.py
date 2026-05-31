@@ -4,10 +4,14 @@ Demo 09: Meshcat Collision-Aware Planning.
 
 Plans a collision-free trajectory around real obstacles using OMPL RRT-Connect.
 Obstacles are wired into both the collision manager (so the planner avoids them)
-and into meshcat (so you can see them).
+and into meshcat (so you can see them in the browser).
+
+The arm sweeps 90° (base rotation) and must navigate around three obstacles
+that block the direct joint-space path.
 
 Run inside Docker:
-    docker run --rm -p 7000:7000 arm-planning-is-not-magic:ci python3 demos/09_meshcat_collision_planning.py
+    docker run --rm -p 7000:7000 arm-planning-is-not-magic:ci \\
+        python3 demos/09_meshcat_collision_planning.py
 
 Then open http://localhost:7000/static/ in your browser.
 """
@@ -34,27 +38,27 @@ except ImportError:
 UR5_VEL_LIMITS = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
 UR5_ACC_LIMITS = np.array([1.5, 1.5, 1.5, 1.5, 1.5, 1.5])
 
-# Start: arm upright
+# Arm pointing forward (+X)
 Q_START = np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
-# Goal: arm reaching to the right side (must navigate around obstacles)
-Q_GOAL = np.array([-np.pi / 2, -np.pi / 3, np.pi / 3, -np.pi / 2, -np.pi / 2, 0.0])
+# Arm pointing left (+Y), 90° base rotation — must navigate around obstacles
+Q_GOAL = np.array([np.pi / 2, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
-# Obstacles: (type, meshcat_kwargs, collision_shape)
+# Obstacles placed between start and goal — verified free at both endpoints
 OBSTACLES = [
     {
-        "label": "front wall",
-        "meshcat": dict(center=(0.35, 0.0, 0.35), size=(0.08, 0.5, 0.5), color=(0.9, 0.2, 0.2, 0.6)),
-        "collision": Box(center=np.array([0.35, 0.0, 0.35]), size=np.array([0.08, 0.5, 0.5])),
+        "label": "front-left slab",
+        "meshcat": dict(center=(0.2, 0.25, 0.35), size=(0.3, 0.07, 0.45), color=(0.9, 0.2, 0.2, 0.65)),
+        "collision": Box(np.array([0.2, 0.25, 0.35]), np.array([0.3, 0.07, 0.45])),
     },
     {
-        "label": "left sphere",
-        "meshcat": dict(center=(-0.1, 0.45, 0.4), radius=0.12, color=(0.2, 0.7, 0.2, 0.6)),
-        "collision": Sphere(center=np.array([-0.1, 0.45, 0.4]), radius=0.12),
+        "label": "overhead bar",
+        "meshcat": dict(center=(0.1, 0.15, 0.62), size=(0.35, 0.3, 0.07), color=(0.2, 0.4, 0.9, 0.65)),
+        "collision": Box(np.array([0.1, 0.15, 0.62]), np.array([0.35, 0.3, 0.07])),
     },
     {
-        "label": "top box",
-        "meshcat": dict(center=(0.0, 0.2, 0.65), size=(0.4, 0.15, 0.08), color=(0.2, 0.4, 0.9, 0.6)),
-        "collision": Box(center=np.array([0.0, 0.2, 0.65]), size=np.array([0.4, 0.15, 0.08])),
+        "label": "right sphere",
+        "meshcat": dict(center=(0.35, 0.2, 0.3), radius=0.09, color=(0.2, 0.8, 0.2, 0.65)),
+        "collision": Sphere(np.array([0.35, 0.2, 0.3]), 0.09),
     },
 ]
 
@@ -62,9 +66,9 @@ OBSTACLES = [
 def main():
     print("=== Demo 09: Meshcat Collision-Aware Planning ===\n")
 
-    # --- Collision manager with obstacles ---
-    robot_no_col = UR5RobotModel(use_opw=False, collision_manager=None)
-    col_mgr = ShapeCollisionManager(robot_no_col)
+    # --- Build collision manager ---
+    robot_bare = UR5RobotModel(use_opw=False, collision_manager=None)
+    col_mgr = ShapeCollisionManager(robot_bare)
     for obs in OBSTACLES:
         col_mgr.add_shape(obs["collision"])
 
@@ -72,15 +76,18 @@ def main():
     fk = URDFKinematics()
     state_space = JointStateSpace(robot)
 
+    assert not robot.in_collision(Q_START), "BUG: start in collision"
+    assert not robot.in_collision(Q_GOAL), "BUG: goal in collision"
+
     # --- Start meshcat ---
     viz = MeshcatVisualizer(open_browser=False)
     print()
     print("==> Open in browser: http://localhost:7000/static/")
-    print("    Waiting 10s before continuing...")
-    time.sleep(10)
+    print("    Waiting 12s before continuing...")
+    time.sleep(12)
 
-    # --- Add obstacles to meshcat scene ---
-    print("Adding obstacles...")
+    # --- Add obstacles to scene ---
+    print("Adding obstacles to scene...")
     for obs in OBSTACLES:
         kw = obs["meshcat"]
         if "radius" in kw:
@@ -89,68 +96,67 @@ def main():
             viz.add_box(**kw)
         print(f"  [{obs['label']}]")
 
-    # --- Show start config ---
-    print(f"\nStart: {np.round(Q_START, 2)}")
-    print(f"Goal:  {np.round(Q_GOAL, 2)}")
+    # --- Show start ---
+    start_ee = fk.forward_kinematics(Q_START)[:3, 3]
+    goal_ee = fk.forward_kinematics(Q_GOAL)[:3, 3]
+    print(f"\nStart EE: {np.round(start_ee, 3)}")
+    print(f"Goal  EE: {np.round(goal_ee, 3)}")
     viz.visualize_configuration(Q_START)
-    time.sleep(2)
-
-    # --- Check start/goal reachability ---
-    if robot.in_collision(Q_START):
-        print("ERROR: start config is in collision")
-        return
-    if robot.in_collision(Q_GOAL):
-        print("ERROR: goal config is in collision")
-        return
+    viz.add_marker(tuple(start_ee), color=(0.0, 1.0, 1.0), size=0.03)
+    viz.add_marker(tuple(goal_ee),  color=(1.0, 1.0, 0.0), size=0.03)
+    time.sleep(3)
 
     # --- Plan ---
-    print("\nPlanning with RRT-Connect (timeout 15s)...")
+    print("\nPlanning with RRT-Connect (timeout 20s)...")
+    t0 = time.time()
     planner = OMPLRRTConnectPlanner(state_space)
-    result = planner.plan(Q_START, Q_GOAL, timeout=15.0)
+    result = planner.plan(Q_START, Q_GOAL, timeout=20.0)
+    print(f"Planning took {time.time() - t0:.1f}s")
 
     if result["path"] is None:
-        print("Planning failed — try adjusting obstacles or goal config.")
+        print("Planning failed.")
+        time.sleep(60)
         return
 
     path = result["path"]
     print(f"Raw path: {len(path)} waypoints")
-
-    path = smooth_path(path, state_space, iterations=100)
+    path = smooth_path(path, state_space, iterations=150)
     print(f"Smoothed: {len(path)} waypoints")
 
     # --- Show planned EE path ---
     viz.visualize_path(
         path,
         fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None),
-        color=(1.0, 0.8, 0.0),
+        color=(1.0, 0.7, 0.0),
         show_waypoints=True,
         waypoint_color=(1.0, 0.4, 0.0),
+        waypoint_size=0.012,
     )
-    print("Path shown (orange). Waiting 4s...")
+    print("Path shown in orange. Waiting 4s before executing...")
     time.sleep(4)
 
     # --- Time parameterization ---
-    print("Parameterizing trajectory...")
+    print("Parameterizing...")
     param = ToppraTimeParameterizer(
         velocity_limits=UR5_VEL_LIMITS,
         acceleration_limits=UR5_ACC_LIMITS,
     )
-    traj_result = param.parameterize(path, Q_START, Q_GOAL)
-    trajectory = traj_result["trajectory"]
-    time_stamps = traj_result["time_stamps"]
-    print(f"Trajectory: {len(trajectory)} pts over {time_stamps[-1]:.2f}s")
+    traj = param.parameterize(path, Q_START, Q_GOAL)
+    trajectory = traj["trajectory"]
+    time_stamps = traj["time_stamps"]
+    print(f"Trajectory: {len(trajectory)} pts, {time_stamps[-1]:.2f}s")
 
     # --- Execute ---
-    print("\nExecuting trajectory (real-time)...")
+    print("\nExecuting — watch the arm navigate around obstacles...")
     viz.visualize_trajectory(
         trajectory,
         time_stamps=time_stamps,
         real_time=True,
-        speed=1.0,
+        speed=0.75,
         show_ee_trail=True,
     )
 
-    print("\nDone. Keeping server alive — Ctrl+C to stop.")
+    print("\nDone. Server alive — Ctrl+C to stop.")
     while True:
         time.sleep(5)
 
