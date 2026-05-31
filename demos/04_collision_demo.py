@@ -163,7 +163,7 @@ def main():
         print("\n   WARNING: Start configuration is in collision!")
         collision_log = collision_manager.get_collision_log()
         for entry in collision_log:
-            print(f"     -> Collision with {entry['shape_type']} at EE position {entry['ee_position']}")
+            print(f"     -> Collision with {entry['shape_type']} at segment endpoint {np.round(entry['segment'][1], 3)}")
     else:
         print("\n   Start configuration is collision-free (this should not happen if obstacles are placed correctly)")
 
@@ -174,7 +174,7 @@ def main():
         print("   WARNING: Goal configuration is in collision!")
         collision_log = collision_manager.get_collision_log()
         for entry in collision_log:
-            print(f"     -> Collision with {entry['shape_type']} at EE position {entry['ee_position']}")
+            print(f"     -> Collision with {entry['shape_type']} at segment endpoint {np.round(entry['segment'][1], 3)}")
     else:
         print("   Goal configuration is collision-free (this should not happen if obstacles are placed correctly)")
 
@@ -215,7 +215,7 @@ def main():
             collision_log = collision_manager.get_collision_log()
             if collision_log:
                 latest = collision_log[-1]
-                print(f"   -> Collision at waypoint {i}/{len(path)-1}: EE at {latest['ee_position']} collides with {latest['shape_type']}")
+                print(f"   -> Collision at waypoint {i}/{len(path)-1}: segment endpoint {np.round(latest['segment'][1], 3)} collides with {latest['shape_type']}")
 
     if path_collisions:
         print(f"   WARNING: Path has {len(path_collisions)} collisions at waypoints: {path_collisions}")
