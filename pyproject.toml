@@ -18,6 +18,10 @@ dependencies = [
 
 [project.optional-dependencies]
 pybullet = ["pybullet>=3.2.0"]
+meshcat = [
+    "meshcat>=0.3.2",
+    "yourdfpy>=0.0.53",
+]
 dev = [
     "pytest>=7.0",
     "pytest-timeout",
