@@ -43,8 +43,9 @@ Q_START = np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 # Arm pointing left (+Y), 90° base rotation — must navigate around obstacles
 Q_GOAL = np.array([np.pi / 2, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
-# Floor collision shape keeps the planned path above ground
-FLOOR = Box(np.array([0.0, 0.0, -0.15]), np.array([3.0, 3.0, 0.08]))
+# Floor: top surface at z=-0.07 (just below base capsule radius 0.065), extends 3m deep.
+# Prevents arm links from swinging below the ground plane during planning.
+FLOOR = Box(np.array([0.0, 0.0, -1.57]), np.array([6.0, 6.0, 3.0]))
 
 # Obstacles along the diagonal swept by the arm from start→goal
 # Verified collision-free at both Q_START and Q_GOAL
