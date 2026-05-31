@@ -220,7 +220,7 @@ def main():
         viz.visualize_multi_planner_trajectories(
             {k: v for k, v in results.items() if v["success"] and v.get("trajectory") is not None},
             fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None),
-            show_labels=True,
+            show_labels=False,
             line_width=3,
             sample_every=2,
         )
@@ -248,12 +248,12 @@ def main():
         time.sleep(60)
         return
 
-    # Final view: all paths overlaid
+    # Final view: all paths overlaid (labels off — meshcat has no text, only sphere markers)
     viz.clear_path()
     viz.visualize_multi_planner_trajectories(
         successful,
         fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None),
-        show_labels=True,
+        show_labels=False,
         line_width=4,
         sample_every=2,
     )
