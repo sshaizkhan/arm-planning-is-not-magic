@@ -61,6 +61,12 @@ PLANNERS = {
     "BiTRRT":      (OMPLBiTRRTPlanner,      {}),
 }
 
+# Single-tree planners (grow one tree from the start) need a longer budget than
+# bidirectional ones to connect to the goal in constrained scenes. They get this
+# multiple of the base --timeout; bidirectional/cell-based planners use 1x.
+_SINGLE_TREE_PLANNERS = {"RRT", "RRT*"}
+_SINGLE_TREE_TIMEOUT_FACTOR = 4.0
+
 
 def run_planner(name, state_space, q_start, q_goal, timeout=2.0):
     planner_class, kwargs = PLANNERS[name]
@@ -140,13 +146,15 @@ def print_comparison_table(results):
 
 def main():
     parser = argparse.ArgumentParser(description="Compare planners in Meshcat browser")
-    # Defaults are planners that reliably find an EXACT solution in this
-    # constrained scene. RRT and RRT* often time out here and are rejected
-    # (no exact goal connection), so they're opt-in via --planners.
+    # Single-tree planners (RRT, RRT*) get a longer budget automatically (see
+    # _SINGLE_TREE_TIMEOUT_FACTOR). They may still occasionally fail in this
+    # tight scene — that's an honest property of single-tree planning.
     parser.add_argument("--planners", nargs="+",
-                        default=["RRT-Connect", "KPIECE1", "BiTRRT"],
+                        default=["RRT-Connect", "RRT*", "KPIECE1", "BiTRRT"],
                         choices=list(PLANNERS.keys()))
-    parser.add_argument("--timeout", type=float, default=10.0)
+    parser.add_argument("--timeout", type=float, default=5.0,
+                        help="Base planning timeout (s). Single-tree planners get %gx this."
+                             % _SINGLE_TREE_TIMEOUT_FACTOR)
     parser.add_argument("--execute", action="store_true",
                         help="Execute (animate) each planner's trajectory sequentially after paths are shown")
     parser.add_argument("--speed", type=float, default=1.5,
@@ -157,23 +165,24 @@ def main():
     print("MULTI-PLANNER MESHCAT VISUALIZATION")
     print("=" * 60)
 
-    # Same obstacle setup as demo 09 — verified collision-free at start and goal
+    # Obstacle setup: a single sphere in the diagonal mid-path forces the arm to
+    # route around it. Kept deliberately simple so that single-tree planners
+    # (RRT, RRT*) can still reliably connect — a denser scene (see demo 09) makes
+    # single-tree planning unreliable while bidirectional planners still succeed.
     robot_bare = UR5RobotModel(use_opw=False, collision_manager=None)
     col_mgr = ShapeCollisionManager(robot_bare)
 
-    FLOOR    = Box(np.array([0.0, 0.0, -1.57]),    np.array([6.0, 6.0, 3.0]))
-    OBS_SLAB = Box(np.array([0.22, 0.22, 0.4]),    np.array([0.4, 0.06, 0.3]))
-    OBS_PIL  = Box(np.array([0.15, 0.38, 0.38]),   np.array([0.06, 0.08, 0.55]))
-    OBS_SPH  = Sphere(np.array([0.3, 0.3, 0.42]),  0.07)
+    FLOOR   = Box(np.array([0.0, 0.0, -1.57]),  np.array([6.0, 6.0, 3.0]))
+    OBS_SPH = Sphere(np.array([0.25, 0.25, 0.5]), 0.1)
 
-    for shape in [FLOOR, OBS_SLAB, OBS_PIL, OBS_SPH]:
+    for shape in [FLOOR, OBS_SPH]:
         col_mgr.add_shape(shape)
 
     robot = UR5RobotModel(use_opw=False, collision_manager=col_mgr)
     fk = URDFKinematics()
     state_space = JointStateSpace(robot)
 
-    # Start/goal verified collision-free with above obstacles
+    # Start/goal verified collision-free with the obstacle
     q_start = np.array([0.0,        -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
     q_goal  = np.array([np.pi / 2,  -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
@@ -189,10 +198,8 @@ def main():
     print("Waiting 8s before planning...")
     time.sleep(8)
 
-    # Add obstacles to meshcat scene (same as demo 09)
-    viz.add_box(center=(0.22, 0.22, 0.4),  size=(0.4, 0.06, 0.3),  color=(0.9, 0.2, 0.2, 0.75))
-    viz.add_box(center=(0.15, 0.38, 0.38), size=(0.06, 0.08, 0.55), color=(0.9, 0.6, 0.1, 0.75))
-    viz.add_sphere(center=(0.3, 0.3, 0.42), radius=0.07,            color=(0.2, 0.7, 0.9, 0.75))
+    # Add obstacle to meshcat scene
+    viz.add_sphere(center=(0.25, 0.25, 0.5), radius=0.1, color=(0.2, 0.7, 0.9, 0.75))
 
     # Mark start and goal EE
     start_ee = fk.forward_kinematics(q_start)[:3, 3]
@@ -202,15 +209,20 @@ def main():
     viz.visualize_configuration(q_start)
 
     # Plan and (optionally) execute each planner immediately after it finds a path
-    print(f"\nRunning {len(args.planners)} planners (timeout={args.timeout}s each)...")
+    print(f"\nRunning {len(args.planners)} planners (base timeout={args.timeout}s)...")
     results = {}
     for name in args.planners:
         if name not in PLANNERS:
             print(f"  Unknown planner: {name}")
             continue
 
-        print(f"  {name}...", end=" ", flush=True)
-        r = run_planner(name, state_space, q_start, q_goal, args.timeout)
+        # Single-tree planners get a longer budget to connect to the goal
+        timeout = args.timeout
+        if name in _SINGLE_TREE_PLANNERS:
+            timeout *= _SINGLE_TREE_TIMEOUT_FACTOR
+
+        print(f"  {name} (timeout={timeout:.0f}s)...", end=" ", flush=True)
+        r = run_planner(name, state_space, q_start, q_goal, timeout)
         results[name] = r
 
         if not r["success"]:
