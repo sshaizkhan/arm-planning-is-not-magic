@@ -31,7 +31,9 @@ except ImportError:
 
 def _rgba_to_hex(rgba: List[float]) -> int:
     """Convert [r, g, b, a] floats (0-1) to packed RGB integer for meshcat."""
-    r, g_v, b = int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255)
+    r = int(min(1.0, max(0.0, rgba[0])) * 255)
+    g_v = int(min(1.0, max(0.0, rgba[1])) * 255)
+    b = int(min(1.0, max(0.0, rgba[2])) * 255)
     return (r << 16) | (g_v << 8) | b
 
 
@@ -191,6 +193,8 @@ class MeshcatVisualizer:
     ):
         """Visualize a complete trajectory."""
         n = len(trajectory)
+        if trajectory.ndim != 2 or trajectory.shape[1] != 6:
+            raise ValueError(f"trajectory must be shape (N, 6), got {trajectory.shape}")
         if time_stamps is None:
             time_stamps = np.linspace(0, 1, n)
 
@@ -202,7 +206,7 @@ class MeshcatVisualizer:
 
             if show_ee_trail:
                 ee_trail.append(self._last_ee_pos.copy())
-                if len(ee_trail) > trail_length:
+                while len(ee_trail) > trail_length:
                     ee_trail.pop(0)
                 if len(ee_trail) >= 2:
                     pts = np.array(ee_trail).T
