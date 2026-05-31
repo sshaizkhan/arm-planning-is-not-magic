@@ -13,6 +13,11 @@ services:
       # Mount a volume for persistent data
       - arm-planning-data:/data
     working_dir: /workspace/arm-planning-is-not-magic
+    ports:
+      # Meshcat web UI — open http://localhost:7000/static/ in browser
+      - "7000:7000"
+      # Meshcat ZMQ server (used internally by meshcat Python)
+      - "6000:6000"
     environment:
       - PYTHONPATH=/workspace/arm-planning-is-not-magic
       - DISPLAY=${DISPLAY:-:0}
