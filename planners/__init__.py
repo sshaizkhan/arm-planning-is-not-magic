@@ -14,7 +14,7 @@ For creating custom planners, inherit from BaseOMPLPlanner.
 
 from planners.base_ompl_planner import BaseOMPLPlanner
 from planners.ompl_bitrrt import OMPLBiTRRTPlanner
-from planners.ompl_est import OMPLESTPLanner
+from planners.ompl_est import OMPLESTPlanner
 from planners.ompl_kpiece1 import OMPLKPiece1Planner
 from planners.ompl_prm import OMPLPRMPlanner
 from planners.ompl_rrt import OMPLRRTPlanner
@@ -30,6 +30,6 @@ __all__ = [
     "OMPLRRTStarPlanner",
     "OMPLPRMPlanner",
     "OMPLKPiece1Planner",
-    "OMPLESTPLanner",
+    "OMPLESTPlanner",
     "OMPLBiTRRTPlanner",
 ]
