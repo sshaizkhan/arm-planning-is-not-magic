@@ -96,6 +96,12 @@ class MeshcatVisualizer:
         if urdf_path is None:
             raise FileNotFoundError("No URDF found. Pass urdf_path= or ensure robots/ur5/ur5.urdf exists.")
         self._robot = yourdfpy.URDF.load(urdf_path)
+        # Build name→rgba lookup from global URDF materials (per-visual colors are None in yourdfpy)
+        self._material_colors = {
+            m.name: m.color.rgba
+            for m in self._robot.robot.materials
+            if m.color is not None
+        }
         self._load_robot_geometry()
 
         self._viz["ground/plane"].set_object(
@@ -112,7 +118,7 @@ class MeshcatVisualizer:
     def _load_robot_geometry(self):
         """Parse URDF links and add geometry to meshcat scene."""
         default_idx = 0
-        for link in self._robot.links:
+        for link in self._robot.link_map.values():
             if not link.visuals:
                 continue
             fallback_rgba = _DEFAULT_LINK_COLORS[default_idx % len(_DEFAULT_LINK_COLORS)]
@@ -138,9 +144,13 @@ class MeshcatVisualizer:
 
     def _urdf_mat_to_meshcat(self, material, fallback_rgba: List[float]) -> object:
         """Convert yourdfpy material to MeshLambertMaterial."""
-        if material is not None and material.color is not None:
-            rgba = material.color.rgba
-        else:
+        rgba = None
+        if material is not None:
+            if material.color is not None:
+                rgba = material.color.rgba
+            elif material.name and material.name in self._material_colors:
+                rgba = self._material_colors[material.name]
+        if rgba is None:
             rgba = fallback_rgba
         hex_color = _rgba_to_hex(rgba)
         alpha = float(rgba[3])
@@ -157,7 +167,7 @@ class MeshcatVisualizer:
         self._last_ee_pos = T_ee[:3, 3].copy()
         self._last_ee_rot = T_ee[:3, :3].copy()
 
-        for link in self._robot.links:
+        for link in self._robot.link_map.values():
             if not link.visuals:
                 continue
             T_world = link_transforms.get(link.name)
