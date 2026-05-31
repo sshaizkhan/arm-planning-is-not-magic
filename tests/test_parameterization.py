@@ -168,3 +168,73 @@ def test_ruckig_duration_positive():
     time_stamps, _ = rp.compute(PATH)
     duration = time_stamps[-1] - time_stamps[0]
     assert duration > 0.0, f"Ruckig trajectory duration must be > 0, got {duration}"
+
+
+# ---------------------------------------------------------------------------
+# API contract tests — prevent regression on constructor kwargs and return type
+# ---------------------------------------------------------------------------
+
+def test_constructor_kwargs():
+    """ToppraTimeParameterizer takes v_max and a_max, not velocity_limits/acceleration_limits."""
+    import inspect
+    from parameterization.toppra_parameterization import ToppraTimeParameterizer
+    sig = inspect.signature(ToppraTimeParameterizer.__init__)
+    params = list(sig.parameters.keys())
+    assert 'v_max' in params, f"Expected v_max param, got: {params}"
+    assert 'a_max' in params, f"Expected a_max param, got: {params}"
+    assert 'velocity_limits' not in params, "velocity_limits param was renamed to v_max"
+    assert 'acceleration_limits' not in params, "acceleration_limits param was renamed to a_max"
+
+
+@skip_toppra
+def test_compute_returns_tuple_of_timestamps_then_trajectory():
+    """compute() must return (time_stamps, trajectory) — time_stamps first."""
+    import numpy as np
+    from parameterization.toppra_parameterization import ToppraTimeParameterizer
+    v = np.ones(6) * 2.0
+    a = np.ones(6) * 1.5
+    param = ToppraTimeParameterizer(v_max=v, a_max=a)
+    path = [np.zeros(6), np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.0])]
+    result = param.compute(path)
+    assert isinstance(result, tuple) and len(result) == 2, "compute() must return a 2-tuple"
+    time_stamps, trajectory = result
+    assert time_stamps[0] == pytest.approx(0.0), "time_stamps must start at 0"
+    assert time_stamps[-1] > 0, "time_stamps must end > 0"
+    assert trajectory.shape[1] == 6, "trajectory must have 6 joints"
+    assert time_stamps.ndim == 1, "first return value must be time_stamps (1D)"
+    assert trajectory.ndim == 2, "second return value must be trajectory (2D)"
+
+
+# ---------------------------------------------------------------------------
+# API contract tests — prevent regression on constructor kwargs and return type
+# ---------------------------------------------------------------------------
+
+def test_constructor_kwargs():
+    """ToppraTimeParameterizer takes v_max and a_max, not velocity_limits/acceleration_limits."""
+    import inspect
+    from parameterization.toppra_parameterization import ToppraTimeParameterizer
+    sig = inspect.signature(ToppraTimeParameterizer.__init__)
+    params = list(sig.parameters.keys())
+    assert 'v_max' in params, f"Expected v_max param, got: {params}"
+    assert 'a_max' in params, f"Expected a_max param, got: {params}"
+    assert 'velocity_limits' not in params, "velocity_limits param was renamed to v_max"
+    assert 'acceleration_limits' not in params, "acceleration_limits param was renamed to a_max"
+
+
+@skip_toppra
+def test_compute_returns_tuple_of_timestamps_then_trajectory():
+    """compute() must return (time_stamps, trajectory) — time_stamps first."""
+    import numpy as np
+    from parameterization.toppra_parameterization import ToppraTimeParameterizer
+    v = np.ones(6) * 2.0
+    a = np.ones(6) * 1.5
+    param = ToppraTimeParameterizer(v_max=v, a_max=a)
+    path = [np.zeros(6), np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.0])]
+    result = param.compute(path)
+    assert isinstance(result, tuple) and len(result) == 2, "compute() must return a 2-tuple"
+    time_stamps, trajectory = result
+    assert time_stamps[0] == pytest.approx(0.0), "time_stamps must start at 0"
+    assert time_stamps[-1] > 0, "time_stamps must end > 0"
+    assert trajectory.shape[1] == 6, "trajectory must have 6 joints"
+    assert time_stamps.ndim == 1, "first return value must be time_stamps (1D)"
+    assert trajectory.ndim == 2, "second return value must be trajectory (2D)"

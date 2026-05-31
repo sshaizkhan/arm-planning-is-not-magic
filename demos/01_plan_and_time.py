@@ -18,48 +18,54 @@ from core.state_space import JointStateSpace
 from parameterization.toppra_parameterization import ToppraTimeParameterizer
 from planners.ompl_rrt import OMPLRRTPlanner
 
-# ---------------------------
-# 1. Define robot
-# ---------------------------
-robot = UR5RobotModel()  # or any 6DOF industrial robot
 
-# ---------------------------
-# 2. State space and collision manager
-# ---------------------------
-collision_manager = NullCollisionManager()
-robot.set_collision_manager(collision_manager)
-state_space = JointStateSpace(robot)
+def main():
+    # ---------------------------
+    # 1. Define robot
+    # ---------------------------
+    robot = UR5RobotModel()  # or any 6DOF industrial robot
 
-# ---------------------------
-# 3. Plan path using OMPL RRT
-# ---------------------------
-dof = robot.dof()
-q_start = np.array([0.0, 0.927747217, 0.0, 0.642, 0.0, 0.0])
-q_goal = np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.0])
+    # ---------------------------
+    # 2. State space and collision manager
+    # ---------------------------
+    collision_manager = NullCollisionManager()
+    robot.set_collision_manager(collision_manager)
+    state_space = JointStateSpace(robot)
 
-planner = OMPLRRTPlanner(state_space, step_size=0.1)
-path = planner.plan(q_start, q_goal, timeout=2.0)
+    # ---------------------------
+    # 3. Plan path using OMPL RRT
+    # ---------------------------
+    dof = robot.dof()
+    q_start = np.array([0.0, 0.927747217, 0.0, 0.642, 0.0, 0.0])
+    q_goal = np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.0])
 
-if path is None:
-    print("No path found!")
-    exit(1)
+    planner = OMPLRRTPlanner(state_space, step_size=0.1)
+    path = planner.plan(q_start, q_goal, timeout=2.0)
 
-print(f"Planned path with {len(path)} waypoints.")
+    if path is None:
+        print("No path found!")
+        return
 
-# ---------------------------
-# 4. Time-parameterize using TOPP-RA
-# ---------------------------
-v_max = np.ones(dof) * 1.0  # rad/s
-a_max = np.ones(dof) * 2.0  # rad/s^2
+    print(f"Planned path with {len(path)} waypoints.")
 
-toppra = ToppraTimeParameterizer(v_max, a_max)
-time_stamps, trajectory = toppra.compute(path)
+    # ---------------------------
+    # 4. Time-parameterize using TOPP-RA
+    # ---------------------------
+    v_max = np.ones(dof) * 1.0  # rad/s
+    a_max = np.ones(dof) * 2.0  # rad/s^2
 
-# ---------------------------
-# 5. Print summary statistics
-# ---------------------------
-print(f"Trajectory duration: {time_stamps[-1]:.3f} s")
-print(f"Number of samples: {trajectory.shape[0]}")
-print(f"Sampled trajectory shape: {trajectory.shape}")
-print(f"First waypoint: {trajectory[0]}")
-print(f"Last waypoint:  {trajectory[-1]}")
+    toppra = ToppraTimeParameterizer(v_max, a_max)
+    time_stamps, trajectory = toppra.compute(path)
+
+    # ---------------------------
+    # 5. Print summary statistics
+    # ---------------------------
+    print(f"Trajectory duration: {time_stamps[-1]:.3f} s")
+    print(f"Number of samples: {trajectory.shape[0]}")
+    print(f"Sampled trajectory shape: {trajectory.shape}")
+    print(f"First waypoint: {trajectory[0]}")
+    print(f"Last waypoint:  {trajectory[-1]}")
+
+
+if __name__ == "__main__":
+    main()
