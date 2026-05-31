@@ -17,7 +17,8 @@ Run inside Docker:
 Or locally (if meshcat installed):
     python3 demos/10_meshcat_multi_planner.py
     python3 demos/10_meshcat_multi_planner.py --planners RRT RRT-Connect "RRT*"
-    python3 demos/10_meshcat_multi_planner.py --animate
+    python3 demos/10_meshcat_multi_planner.py --execute
+    python3 demos/10_meshcat_multi_planner.py --execute --speed 0.75
 
 Then open http://localhost:7000/static/ in your browser.
 """
@@ -137,9 +138,10 @@ def main():
     parser.add_argument("--planners", nargs="+", default=["RRT", "RRT-Connect", "RRT*"],
                         choices=list(PLANNERS.keys()))
     parser.add_argument("--timeout", type=float, default=10.0)
-    parser.add_argument("--animate", action="store_true",
-                        help="Animate each planner's trajectory after showing all paths")
-    parser.add_argument("--speed", type=float, default=1.5)
+    parser.add_argument("--execute", action="store_true",
+                        help="Execute (animate) each planner's trajectory sequentially after paths are shown")
+    parser.add_argument("--speed", type=float, default=1.5,
+                        help="Trajectory playback speed multiplier (default: 1.5)")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -214,15 +216,15 @@ def main():
         sample_every=2,
     )
 
-    if not args.animate:
-        print("\nAll paths shown. Ctrl+C to stop.")
+    if not args.execute:
+        print("\nAll paths shown. Add --execute to animate each trajectory. Ctrl+C to stop.")
         while True:
             time.sleep(5)
 
-    # Animate each planner's trajectory in turn
-    print("\nAnimating trajectories one by one...")
+    # Execute each planner's trajectory sequentially
+    print(f"\nExecuting {len(successful)} trajectories at {args.speed}x speed...")
     for name, result in successful.items():
-        print(f"  Animating: {name}")
+        print(f"  Executing: {name}")
         viz.clear_path()
         # Redraw all paths faintly, then animate this one
         viz.visualize_multi_planner_trajectories(
