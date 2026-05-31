@@ -5,10 +5,12 @@ This module provides tools to visualize:
 - End-effector paths in 3D Cartesian space
 - Simple stick-figure robot arm animations
 - PyBullet-based 3D visualization
+- Meshcat browser-based 3D visualization
 
 Usage:
     from visualization import plot_joint_trajectory, plot_ee_path_3d, RobotVisualizer
     from visualization import PyBulletVisualizer
+    from visualization import MeshcatVisualizer
 """
 
 from visualization.path_3d import (
@@ -34,6 +36,13 @@ except ImportError:
     PYBULLET_AVAILABLE = False
     PyBulletVisualizer = None
 
+try:
+    from visualization.meshcat_visualizer import MeshcatVisualizer
+    MESHCAT_AVAILABLE = True
+except ImportError:
+    MESHCAT_AVAILABLE = False
+    MeshcatVisualizer = None
+
 __all__ = [
     # Joint-space plots
     "plot_joint_trajectory",
@@ -50,4 +59,7 @@ __all__ = [
     # PyBullet visualization
     "PyBulletVisualizer",
     "PYBULLET_AVAILABLE",
+    # Meshcat visualization
+    "MeshcatVisualizer",
+    "MESHCAT_AVAILABLE",
 ]
