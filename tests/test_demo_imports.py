@@ -56,23 +56,18 @@ def _make_ruckig_mock():
     return mock
 
 
-# Seed ruckig as a mock in sys.modules immediately at collection time,
-# before any import of parameterization can load the real C extension.
-if "ruckig" not in sys.modules:
-    sys.modules["ruckig"] = _make_ruckig_mock()
-
-
 # ---------------------------------------------------------------------------
 # Module eviction and demo import helper
 # ---------------------------------------------------------------------------
 
-# Prefixes of *local* packages to evict before each demo import so that
-# cross-test state doesn't bleed. C extensions (ruckig) are excluded.
-_EVICT_PREFIXES = ("demos.", "planners", "parameterization", "core")
+# Only evict demo modules between tests. Never evict parameterization/core —
+# those link against the real ruckig C extension at import time, and evicting
+# them forces a re-import that picks up the mock and corrupts later real tests.
+_EVICT_PREFIXES = ("demos.",)
 
 
-def _evict_local_modules():
-    """Remove locally-owned modules from sys.modules for a clean re-import."""
+def _evict_demo_modules():
+    """Remove demo modules from sys.modules so each test gets a fresh import."""
     to_remove = [
         key for key in list(sys.modules)
         if any(key == p or key.startswith(p + ".") for p in _EVICT_PREFIXES)
@@ -82,8 +77,12 @@ def _evict_local_modules():
 
 
 def _import_demo(module_name: str):
-    """Import a demo module with heavy deps mocked. Returns the module."""
-    _evict_local_modules()
+    """Import a demo module with heavy deps mocked. Returns the module.
+
+    ruckig is only mocked within the patch.dict context — patch.dict restores
+    the real module on exit, so subsequent real tests are unaffected.
+    """
+    _evict_demo_modules()
 
     mocks = {
         "ompl": _make_ompl_mock(),
@@ -96,9 +95,7 @@ def _import_demo(module_name: str):
         "yourdfpy": MagicMock(),
         "pybullet": MagicMock(),
         "pybullet_data": MagicMock(),
-        # ruckig is already seeded as a mock in sys.modules above;
-        # re-applying it here ensures it stays mocked within the patch context.
-        "ruckig": sys.modules["ruckig"],
+        "ruckig": _make_ruckig_mock(),
     }
     with patch.dict(sys.modules, mocks):
         mod = importlib.import_module(module_name)
