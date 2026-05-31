@@ -29,19 +29,52 @@ from visualization.trajectory_plots import (
     plot_velocity_profile,
 )
 
-try:
-    from visualization.pybullet_visualizer import PyBulletVisualizer
-    PYBULLET_AVAILABLE = True
-except ImportError:
-    PYBULLET_AVAILABLE = False
-    PyBulletVisualizer = None
+# PyBullet and Meshcat visualizers are imported lazily via __getattr__ below.
+# Importing them eagerly loads heavy C extensions (pybullet prints a build-time
+# banner on import), which pollutes stdout for users who only need one backend.
 
-try:
-    from visualization.meshcat_visualizer import MeshcatVisualizer
-    MESHCAT_AVAILABLE = True
-except ImportError:
-    MESHCAT_AVAILABLE = False
-    MeshcatVisualizer = None
+
+def _installed(module: str) -> bool:
+    """True if a module can be located. Treats already-imported modules
+    (including test mocks without a spec) as available."""
+    import sys
+    if module in sys.modules:
+        return True
+    import importlib.util
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _pybullet_available() -> bool:
+    return _installed("pybullet")
+
+
+def _meshcat_available() -> bool:
+    return _installed("meshcat") and _installed("yourdfpy")
+
+
+# Module-level availability flags (cheap — only checks if the package is installed,
+# does not import it).
+PYBULLET_AVAILABLE = _pybullet_available()
+MESHCAT_AVAILABLE = _meshcat_available()
+
+
+def __getattr__(name):
+    """Lazily import visualizer classes only when first accessed."""
+    if name == "PyBulletVisualizer":
+        if not PYBULLET_AVAILABLE:
+            return None
+        from visualization.pybullet_visualizer import PyBulletVisualizer
+        return PyBulletVisualizer
+    if name == "MeshcatVisualizer":
+        if not MESHCAT_AVAILABLE:
+            return None
+        from visualization.meshcat_visualizer import MeshcatVisualizer
+        return MeshcatVisualizer
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # Joint-space plots
