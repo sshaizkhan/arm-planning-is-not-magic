@@ -182,6 +182,12 @@ class BaseOMPLPlanner(ABC):
         if not solved:
             return None
 
+        # Reject approximate solutions — optimizing planners (e.g. RRT*) return
+        # the best-so-far path even when it does not reach the goal. Only accept
+        # a path that exactly connects start to goal.
+        if not pdef.hasExactSolution():
+            return None
+
         return self._extract_path(pdef)
 
     @property

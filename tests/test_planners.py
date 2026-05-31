@@ -263,3 +263,28 @@ def test_all_planner_names_importable():
     for name in planners.__all__:
         assert hasattr(planners, name), \
             f"planners.{name} declared in __all__ but not importable"
+
+
+@pytest.mark.ompl
+def test_plan_rejects_approximate_solution():
+    """plan() must return None when the planner cannot exactly reach the goal.
+
+    Optimizing planners (e.g. RRT*) return a best-so-far path that stops short
+    of the goal when they time out. plan() must reject these — a returned path
+    must always end at (or extremely close to) the requested goal config.
+    """
+    from core.robot_model import UR5RobotModel
+    from core.state_space import JointStateSpace
+    from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
+
+    robot = UR5RobotModel(use_opw=False, collision_manager=None)
+    ss = JointStateSpace(robot)
+    planner = OMPLRRTConnectPlanner(ss)
+    q0 = np.array([0.0, -1.57, 1.57, -1.57, -1.57, 0.0])
+    q1 = np.array([1.57, -1.57, 1.57, -1.57, -1.57, 0.0])
+
+    result = planner.plan(q0, q1, timeout=5.0)
+    if result is not None:
+        # A non-None path must actually reach the goal — not an approximate stop.
+        assert np.allclose(result[-1], q1, atol=0.1), \
+            f"plan() returned a path ending at {result[-1]}, not the goal {q1}"
