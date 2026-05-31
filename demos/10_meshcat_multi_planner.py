@@ -50,13 +50,13 @@ except ImportError:
 
 
 PLANNERS = {
-    "RRT":         (OMPLRRTPlanner,        {"step_size": 0.1}),
-    "RRT-Connect": (OMPLRRTConnectPlanner,  {"step_size": 0.1}),
-    "RRT*":        (OMPLRRTStarPlanner,     {"step_size": 0.1}),
+    "RRT":         (OMPLRRTPlanner,        {}),
+    "RRT-Connect": (OMPLRRTConnectPlanner,  {}),
+    "RRT*":        (OMPLRRTStarPlanner,     {}),
     "PRM":         (OMPLPRMPlanner,         {}),
     "KPIECE1":     (OMPLKPIECE1Planner,     {}),
-    "EST":         (OMPLESTPlanner,         {"step_size": 0.1}),
-    "BiTRRT":      (OMPLBiTRRTPlanner,      {"step_size": 0.1}),
+    "EST":         (OMPLESTPlanner,         {}),
+    "BiTRRT":      (OMPLBiTRRTPlanner,      {}),
 }
 
 
@@ -136,7 +136,7 @@ def main():
     parser = argparse.ArgumentParser(description="Compare planners in Meshcat browser")
     parser.add_argument("--planners", nargs="+", default=["RRT", "RRT-Connect", "RRT*"],
                         choices=list(PLANNERS.keys()))
-    parser.add_argument("--timeout", type=float, default=5.0)
+    parser.add_argument("--timeout", type=float, default=10.0)
     parser.add_argument("--animate", action="store_true",
                         help="Animate each planner's trajectory after showing all paths")
     parser.add_argument("--speed", type=float, default=1.5)
