@@ -43,6 +43,9 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # Try to import from system package first, fallback to pip
 RUN python3 -c "import ompl" 2>/dev/null || pip install --no-cache-dir ompl || echo "Warning: OMPL Python bindings not available"
 
+# Install meshcat visualization dependencies
+RUN pip install --no-cache-dir meshcat yourdfpy
+
 # Copy project files
 COPY . /workspace/arm-planning-is-not-magic/
 
