@@ -197,10 +197,47 @@ def main():
     viz.add_marker(tuple(goal_ee), color=(1.0, 1.0, 0.0), size=0.04)
     viz.visualize_configuration(q_start)
 
-    # Run planners
-    print(f"\nRunning {args.planners} planners (timeout={args.timeout}s each)...")
-    results = run_all_planners(state_space, q_start, q_goal,
-                               args.planners, args.timeout)
+    # Plan and (optionally) execute each planner immediately after it finds a path
+    print(f"\nRunning {len(args.planners)} planners (timeout={args.timeout}s each)...")
+    results = {}
+    for name in args.planners:
+        if name not in PLANNERS:
+            print(f"  Unknown planner: {name}")
+            continue
+
+        print(f"  {name}...", end=" ", flush=True)
+        r = run_planner(name, state_space, q_start, q_goal, args.timeout)
+        results[name] = r
+
+        if not r["success"]:
+            print(f"FAILED ({r['planning_time']:.3f}s)")
+            continue
+
+        print(f"OK (plan: {r['planning_time']:.3f}s, waypoints: {r['num_waypoints']}, exec: {r['duration']:.2f}s)")
+
+        # Draw this planner's path immediately
+        viz.clear_path()
+        viz.visualize_multi_planner_trajectories(
+            {k: v for k, v in results.items() if v["success"] and v.get("trajectory") is not None},
+            fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None),
+            show_labels=True,
+            line_width=3,
+            sample_every=2,
+        )
+
+        # Execute immediately if --execute is set
+        if args.execute and r.get("trajectory") is not None:
+            print(f"    Executing {name} at {args.speed}x speed...")
+            viz.visualize_trajectory(
+                r["trajectory"],
+                time_stamps=r["timestamps"],
+                real_time=True,
+                speed=args.speed,
+                show_ee_trail=True,
+                trail_length=80,
+            )
+            viz.visualize_configuration(q_start)  # reset arm to start after execution
+
     print_comparison_table(results)
 
     successful = {n: r for n, r in results.items()
@@ -211,8 +248,8 @@ def main():
         time.sleep(60)
         return
 
-    # Draw all EE paths simultaneously with labels
-    print(f"\nDrawing {len(successful)} trajectories in browser...")
+    # Final view: all paths overlaid
+    viz.clear_path()
     viz.visualize_multi_planner_trajectories(
         successful,
         fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None),
@@ -220,36 +257,7 @@ def main():
         line_width=4,
         sample_every=2,
     )
-
-    if not args.execute:
-        print("\nAll paths shown. Add --execute to animate each trajectory. Ctrl+C to stop.")
-        while True:
-            time.sleep(5)
-
-    # Execute each planner's trajectory sequentially
-    print(f"\nExecuting {len(successful)} trajectories at {args.speed}x speed...")
-    for name, result in successful.items():
-        print(f"  Executing: {name}")
-        viz.clear_path()
-        # Redraw all paths faintly, then animate this one
-        viz.visualize_multi_planner_trajectories(
-            successful,
-            fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None),
-            show_labels=False,
-            line_width=2,
-            sample_every=3,
-        )
-        viz.visualize_trajectory(
-            result["trajectory"],
-            time_stamps=result["timestamps"],
-            real_time=True,
-            speed=args.speed,
-            show_ee_trail=True,
-            trail_length=80,
-        )
-        time.sleep(0.5)
-
-    print("\nVisualization complete. Ctrl+C to stop.")
+    print("\nAll paths shown. Ctrl+C to stop.")
     while True:
         time.sleep(5)
 
