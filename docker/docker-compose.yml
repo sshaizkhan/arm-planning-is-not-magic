@@ -10,6 +10,8 @@ services:
       - ..:/workspace/arm-planning-is-not-magic
       # Mount a volume for persistent data
       - arm-planning-data:/data
+      # X11 forwarding
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
     working_dir: /workspace/arm-planning-is-not-magic
     ports:
       # Meshcat web UI — open http://localhost:7001/static/ in browser
@@ -22,10 +24,6 @@ services:
       - DISPLAY=${DISPLAY:-:0}
     stdin_open: true
     tty: true
-    # Uncomment for GUI support (X11 forwarding)
-    # network_mode: host
-    # volumes:
-    #   - /tmp/.X11-unix:/tmp/.X11-unix:rw
 
 volumes:
   arm-planning-data:
