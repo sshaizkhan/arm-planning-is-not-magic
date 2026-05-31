@@ -71,11 +71,19 @@ class BaseOMPLPlanner(ABC):
         # Create space information with validity checker
         self.si = ob.SpaceInformation(self.ompl_space)
 
-        def is_state_valid(state):
-            q = np.array([state[i] for i in range(self.dim)])
-            return self.state_space.is_valid(q)
+        # StateValidityCheckerFn was removed in some OMPL builds; subclass instead.
+        class _Checker(ob.StateValidityChecker):
+            def __init__(self, si, state_space, dim):
+                super().__init__(si)
+                self._state_space = state_space
+                self._dim = dim
 
-        self.si.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))
+            def isValid(self, state):
+                q = np.array([state[i] for i in range(self._dim)])
+                return bool(self._state_space.is_valid(q))
+
+        self._validity_checker = _Checker(self.si, self.state_space, self.dim)
+        self.si.setStateValidityChecker(self._validity_checker)
         self.si.setup()
 
     @abstractmethod
@@ -111,12 +119,13 @@ class BaseOMPLPlanner(ABC):
         Returns:
             OMPL ProblemDefinition instance
         """
-        start = ob.State(self.ompl_space)
-        goal = ob.State(self.ompl_space)
+        # ob.State constructor absent in this OMPL build; use si.allocState() instead.
+        start = self.si.allocState()
+        goal = self.si.allocState()
 
         for i in range(self.dim):
-            start[i] = q_start[i]
-            goal[i] = q_goal[i]
+            start[i] = float(q_start[i])
+            goal[i] = float(q_goal[i])
 
         pdef = ob.ProblemDefinition(self.si)
         pdef.setStartAndGoalStates(start, goal)

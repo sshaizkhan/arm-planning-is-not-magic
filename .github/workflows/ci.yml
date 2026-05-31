@@ -27,3 +27,17 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Run tests (excluding OMPL)
         run: pytest tests/ -m "not ompl" -v --timeout=30
+
+  test-ompl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t arm-planning-is-not-magic:ci -f docker/Dockerfile .
+      - name: Run all tests (including OMPL) inside Docker
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace/arm-planning-is-not-magic \
+            -w /workspace/arm-planning-is-not-magic \
+            arm-planning-is-not-magic:ci \
+            bash -c "pip install pytest pytest-timeout --quiet --root-user-action=ignore && pytest tests/ -v --timeout=30"
