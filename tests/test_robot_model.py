@@ -158,3 +158,42 @@ def test_in_collision_no_manager(robot, q_zero):
     """
     # robot fixture has collision_manager=None
     assert robot.in_collision(q_zero) is False
+
+
+# ---------------------------------------------------------------------------
+# URDFKinematics link_transforms
+# ---------------------------------------------------------------------------
+
+from core.kinematics.urdf_kinematics import URDFKinematics
+
+
+@pytest.fixture
+def urdf_kin():
+    return URDFKinematics()
+
+
+def test_link_transforms_returns_all_links(urdf_kin):
+    q = np.zeros(6)
+    transforms = urdf_kin.link_transforms(q)
+    expected_links = [
+        'base_link', 'shoulder_link', 'upper_arm_link',
+        'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'ee_link',
+    ]
+    for name in expected_links:
+        assert name in transforms, f"Missing link: {name}"
+        T = transforms[name]
+        assert T.shape == (4, 4), f"{name} transform is not 4x4"
+        assert np.allclose(T[3], [0, 0, 0, 1]), f"{name} last row not [0,0,0,1]"
+
+
+def test_link_transforms_base_is_identity(urdf_kin):
+    transforms = urdf_kin.link_transforms(np.zeros(6))
+    assert np.allclose(transforms['base_link'], np.eye(4))
+
+
+def test_link_transforms_ee_matches_forward_kinematics(urdf_kin):
+    """EE transform from link_transforms must match forward_kinematics."""
+    q = np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.1])
+    transforms = urdf_kin.link_transforms(q)
+    T_fk = urdf_kin.forward_kinematics(q)
+    assert np.allclose(transforms['ee_link'], T_fk, atol=1e-10)
