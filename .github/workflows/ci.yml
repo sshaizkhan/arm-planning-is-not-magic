@@ -40,4 +40,4 @@ jobs:
             -v "$PWD":/workspace/arm-planning-is-not-magic \
             -w /workspace/arm-planning-is-not-magic \
             arm-planning-is-not-magic:ci \
-            bash -c "pip install pytest --quiet --root-user-action=ignore && pytest tests/ -v --timeout=30"
+            bash -c "pip install pytest pytest-timeout --quiet --root-user-action=ignore && pytest tests/ -v --timeout=30"
