@@ -142,8 +142,8 @@ def test_kpiece1_finds_path(open_space):
     a cell decomposition of the state space to guide exploration.  It can
     handle narrow passages better than uniform-random sampling strategies.
     """
-    from planners.ompl_kpiece1 import OMPLKPiece1Planner
-    planner = OMPLKPiece1Planner(open_space)
+    from planners.ompl_kpiece1 import OMPLKPIECE1Planner
+    planner = OMPLKPIECE1Planner(open_space)
     path = planner.plan(Q_START, Q_GOAL, timeout=TIMEOUT)
     assert_valid_path(path, Q_START, Q_GOAL)
 
@@ -159,8 +159,8 @@ def test_est_finds_path(open_space):
     EST biases sampling toward less-explored regions.  It's a useful baseline
     for comparing coverage-driven vs. goal-biased exploration.
     """
-    from planners.ompl_est import OMPLESTPLanner
-    planner = OMPLESTPLanner(open_space)
+    from planners.ompl_est import OMPLESTPlanner
+    planner = OMPLESTPlanner(open_space)
     path = planner.plan(Q_START, Q_GOAL, timeout=TIMEOUT)
     assert_valid_path(path, Q_START, Q_GOAL)
 
@@ -221,3 +221,45 @@ def test_rrt_returns_none_on_impossible(open_space):
         assert result is None or len(result) >= 1
     except Exception as e:
         pytest.fail(f"planner.plan() raised an unexpected exception: {e}")
+
+
+# ---------------------------------------------------------------------------
+# API contract tests — prevent regression on return-type and naming bugs
+# ---------------------------------------------------------------------------
+
+@pytest.mark.ompl
+def test_plan_returns_list_not_dict():
+    """plan() must return a list of configs, not a dict."""
+    import inspect
+    from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
+    sig = inspect.signature(OMPLRRTConnectPlanner.plan)
+    hints = sig.return_annotation
+    assert hints != dict, "plan() must not return a dict"
+
+
+@pytest.mark.ompl
+def test_plan_return_value_is_list_or_none():
+    """plan() return value is a list of arrays or None, never a dict."""
+    from core.robot_model import UR5RobotModel
+    from core.state_space import JointStateSpace
+    from planners.ompl_rrt_connect import OMPLRRTConnectPlanner
+    robot = UR5RobotModel(use_opw=False, collision_manager=None)
+    ss = JointStateSpace(robot)
+    planner = OMPLRRTConnectPlanner(ss)
+    q0 = np.array([0.0, -1.57, 1.57, -1.57, -1.57, 0.0])
+    q1 = np.array([1.57, -1.57, 1.57, -1.57, -1.57, 0.0])
+    result = planner.plan(q0, q1, timeout=5.0)
+    assert result is None or isinstance(result, list), \
+        f"plan() returned {type(result)}, expected list or None"
+    if result is not None:
+        assert len(result) > 0
+        assert isinstance(result[0], np.ndarray)
+
+
+@pytest.mark.ompl
+def test_all_planner_names_importable():
+    """All names declared in planners/__init__.__all__ must actually import."""
+    import planners
+    for name in planners.__all__:
+        assert hasattr(planners, name), \
+            f"planners.{name} declared in __all__ but not importable"

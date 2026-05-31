@@ -197,3 +197,30 @@ def test_link_transforms_ee_matches_forward_kinematics(urdf_kin):
     transforms = urdf_kin.link_transforms(q)
     T_fk = urdf_kin.forward_kinematics(q)
     assert np.allclose(transforms['ee_link'], T_fk, atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# API contract tests — prevent regression on IKSolver and smooth_path signatures
+# ---------------------------------------------------------------------------
+
+def test_ik_solver_requires_two_args():
+    """IKSolver.__init__ must require robot AND ik_solver — not just robot."""
+    import inspect
+    from core.pose_utils import IKSolver
+    sig = inspect.signature(IKSolver.__init__)
+    params = [p for p in sig.parameters if p != 'self']
+    assert len(params) >= 2, \
+        f"IKSolver.__init__ must accept at least 2 args (robot, ik_solver), got: {params}"
+    assert 'ik_solver' in params, f"IKSolver must have ik_solver param, got: {params}"
+
+
+def test_smooth_path_kwargs():
+    """smooth_path uses shortcut_iterations= not iterations=."""
+    import inspect
+    from core.path_smoothing import smooth_path
+    sig = inspect.signature(smooth_path)
+    params = list(sig.parameters.keys())
+    assert 'shortcut_iterations' in params, \
+        f"smooth_path must have shortcut_iterations param, got: {params}"
+    assert 'iterations' not in params, \
+        "smooth_path does not have iterations= param (use shortcut_iterations=)"
