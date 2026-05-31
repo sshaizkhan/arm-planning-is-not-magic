@@ -140,7 +140,11 @@ def print_comparison_table(results):
 
 def main():
     parser = argparse.ArgumentParser(description="Compare planners in Meshcat browser")
-    parser.add_argument("--planners", nargs="+", default=["RRT", "RRT-Connect", "RRT*"],
+    # Defaults are planners that reliably find an EXACT solution in this
+    # constrained scene. RRT and RRT* often time out here and are rejected
+    # (no exact goal connection), so they're opt-in via --planners.
+    parser.add_argument("--planners", nargs="+",
+                        default=["RRT-Connect", "KPIECE1", "BiTRRT"],
                         choices=list(PLANNERS.keys()))
     parser.add_argument("--timeout", type=float, default=10.0)
     parser.add_argument("--execute", action="store_true",
