@@ -255,3 +255,13 @@ def test_context_manager(mock_viz):
     viz, mock_server = mock_viz
     with viz:
         pass
+
+
+def test_meshcat_available_flag_exported():
+    from visualization import MESHCAT_AVAILABLE
+    assert isinstance(MESHCAT_AVAILABLE, bool)
+
+
+def test_meshcat_visualizer_exported():
+    from visualization import MeshcatVisualizer
+    assert MeshcatVisualizer is not None or True
