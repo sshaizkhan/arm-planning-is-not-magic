@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     python3-venv \
+    python3-tk \
     build-essential \
     cmake \
     pkg-config \
@@ -35,6 +36,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
         pip install --no-cache-dir \
             numpy \
             toppra \
+            pybullet \
             ruckig \
             matplotlib; \
     fi
@@ -60,6 +62,7 @@ RUN pip install --no-cache-dir -e .
 
 # Set Python path
 ENV PYTHONPATH=/workspace/arm-planning-is-not-magic:${PYTHONPATH}
+ENV MPLBACKEND=TkAgg
 
 # Default command
 CMD ["/bin/bash"]
