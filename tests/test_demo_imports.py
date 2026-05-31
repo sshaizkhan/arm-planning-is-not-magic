@@ -116,6 +116,7 @@ DEMOS = [
     "demos.07_multi_planner_visualization",
     "demos.08_meshcat_visualization",
     "demos.09_meshcat_collision_planning",
+    "demos.10_meshcat_multi_planner",
 ]
 
 
