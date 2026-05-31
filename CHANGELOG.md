@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-05-31
+
+- Fix OMPL Python bindings compatibility for Ubuntu 22.04 system package
+- Add CI job to run OMPL tests inside Docker
+
+
 ## [0.2.1] - 2026-05-30
 
 - Fix post-merge workflow: retry PR detection up to 5x with 3s delay to handle GitHub API lag
