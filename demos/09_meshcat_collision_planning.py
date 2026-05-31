@@ -113,12 +113,12 @@ def main():
     result = planner.plan(Q_START, Q_GOAL, timeout=20.0)
     print(f"Planning took {time.time() - t0:.1f}s")
 
-    if result["path"] is None:
+    if result is None:
         print("Planning failed.")
         time.sleep(60)
         return
 
-    path = result["path"]
+    path = result
     print(f"Raw path: {len(path)} waypoints")
     path = smooth_path(path, state_space, iterations=150)
     print(f"Smoothed: {len(path)} waypoints")
@@ -137,13 +137,8 @@ def main():
 
     # --- Time parameterization ---
     print("Parameterizing...")
-    param = ToppraTimeParameterizer(
-        velocity_limits=UR5_VEL_LIMITS,
-        acceleration_limits=UR5_ACC_LIMITS,
-    )
-    traj = param.parameterize(path, Q_START, Q_GOAL)
-    trajectory = traj["trajectory"]
-    time_stamps = traj["time_stamps"]
+    param = ToppraTimeParameterizer(v_max=UR5_VEL_LIMITS, a_max=UR5_ACC_LIMITS)
+    time_stamps, trajectory = param.compute(path)
     print(f"Trajectory: {len(trajectory)} pts, {time_stamps[-1]:.2f}s")
 
     # --- Execute ---
