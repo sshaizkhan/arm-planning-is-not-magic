@@ -17,9 +17,7 @@ Run inside Docker:
 Or locally (if meshcat installed):
     python3 demos/10_meshcat_multi_planner.py
     python3 demos/10_meshcat_multi_planner.py --planners RRT RRT-Connect "RRT*"
-    python3 demos/10_meshcat_multi_planner.py --obstacles
     python3 demos/10_meshcat_multi_planner.py --animate
-    python3 demos/10_meshcat_multi_planner.py --random
 
 Then open http://localhost:7000/static/ in your browser.
 """
@@ -29,7 +27,7 @@ import time
 
 import numpy as np
 
-from core.collision_manager import Box, NullCollisionManager, ShapeCollisionManager
+from core.collision_manager import Box, Sphere, ShapeCollisionManager
 from core.kinematics.urdf_kinematics import URDFKinematics
 from core.robot_model import UR5RobotModel
 from core.state_space import JointStateSpace
@@ -138,46 +136,38 @@ def main():
     parser = argparse.ArgumentParser(description="Compare planners in Meshcat browser")
     parser.add_argument("--planners", nargs="+", default=["RRT", "RRT-Connect", "RRT*"],
                         choices=list(PLANNERS.keys()))
-    parser.add_argument("--timeout", type=float, default=2.0)
-    parser.add_argument("--obstacles", action="store_true", help="Add a box obstacle")
+    parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--animate", action="store_true",
                         help="Animate each planner's trajectory after showing all paths")
     parser.add_argument("--speed", type=float, default=1.5)
-    parser.add_argument("--random", action="store_true", help="Use random valid goal")
     args = parser.parse_args()
 
     print("=" * 60)
     print("MULTI-PLANNER MESHCAT VISUALIZATION")
     print("=" * 60)
 
-    robot = UR5RobotModel()
+    # Same obstacle setup as demo 09 — verified collision-free at start and goal
+    robot_bare = UR5RobotModel(use_opw=False, collision_manager=None)
+    col_mgr = ShapeCollisionManager(robot_bare)
+
+    FLOOR    = Box(np.array([0.0, 0.0, -1.57]),    np.array([6.0, 6.0, 3.0]))
+    OBS_SLAB = Box(np.array([0.22, 0.22, 0.4]),    np.array([0.4, 0.06, 0.3]))
+    OBS_PIL  = Box(np.array([0.15, 0.38, 0.38]),   np.array([0.06, 0.08, 0.55]))
+    OBS_SPH  = Sphere(np.array([0.3, 0.3, 0.42]),  0.07)
+
+    for shape in [FLOOR, OBS_SLAB, OBS_PIL, OBS_SPH]:
+        col_mgr.add_shape(shape)
+
+    robot = UR5RobotModel(use_opw=False, collision_manager=col_mgr)
     fk = URDFKinematics()
-    collision_manager = ShapeCollisionManager(robot)
-
-    if args.obstacles:
-        obs = Box(center=(0.3, 0.0, 0.35), size=(0.12, 0.20, 0.15))
-        collision_manager.add_shape(obs)
-        robot.set_collision_manager(collision_manager)
-        print(f"  Added box obstacle at {obs.center}")
-    else:
-        robot.set_collision_manager(NullCollisionManager())
-
     state_space = JointStateSpace(robot)
 
-    q_start = np.array([0.0, -0.5, 0.5, -0.5, -0.5, 0.0])
-    q_goal = np.array([1.5, -1.0, 1.0, -1.0, 0.5, 0.5])
+    # Start/goal verified collision-free with above obstacles
+    q_start = np.array([0.0,        -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
+    q_goal  = np.array([np.pi / 2,  -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
-    if args.random:
-        print("\nSearching for random valid goal...")
-        lower, upper = robot.joint_limits()
-        for attempt in range(100):
-            q_rand = lower + np.random.random(6) * (upper - lower)
-            if state_space.is_valid(q_rand) and np.linalg.norm(q_rand - q_start) > 1.0:
-                q_goal = q_rand
-                print(f"  Found valid goal after {attempt + 1} attempts")
-                break
-        else:
-            print("  Warning: could not find random goal, using default")
+    assert not robot.in_collision(q_start), "BUG: start in collision"
+    assert not robot.in_collision(q_goal),  "BUG: goal in collision"
 
     print(f"\nStart: {np.round(q_start, 2)}")
     print(f"Goal:  {np.round(q_goal, 2)}")
@@ -188,10 +178,10 @@ def main():
     print("Waiting 8s before planning...")
     time.sleep(8)
 
-    # Add obstacles
-    if args.obstacles:
-        viz.add_box(center=tuple(obs.center), size=tuple(obs.size),
-                    color=(0.8, 0.2, 0.2, 0.7))
+    # Add obstacles to meshcat scene (same as demo 09)
+    viz.add_box(center=(0.22, 0.22, 0.4),  size=(0.4, 0.06, 0.3),  color=(0.9, 0.2, 0.2, 0.75))
+    viz.add_box(center=(0.15, 0.38, 0.38), size=(0.06, 0.08, 0.55), color=(0.9, 0.6, 0.1, 0.75))
+    viz.add_sphere(center=(0.3, 0.3, 0.42), radius=0.07,            color=(0.2, 0.7, 0.9, 0.75))
 
     # Mark start and goal EE
     start_ee = fk.forward_kinematics(q_start)[:3, 3]
