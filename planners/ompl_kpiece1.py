@@ -15,7 +15,7 @@ from ompl import geometric as og  # type: ignore
 from planners.base_ompl_planner import BaseOMPLPlanner
 
 
-class OMPLKPIECE1Planner(BaseOMPLPlanner):
+class OMPLKPiece1Planner(BaseOMPLPlanner):
     """Cell-based exploration. Good for narrow passages."""
 
     def _create_planner(self):

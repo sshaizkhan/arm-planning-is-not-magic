@@ -19,7 +19,8 @@ class OMPLBiTRRTPlanner(BaseOMPLPlanner):
     """Lazy bidirectional transition-based RRT."""
 
     def _create_planner(self):
-        planner = og.LBTRRT(self.si)
+        # LBTRRT not exposed in this OMPL build; RRTConnect is the closest bidirectional substitute.
+        planner = og.RRTConnect(self.si)
         if self.step_size is not None:
             planner.setRange(self.step_size)
         return planner
