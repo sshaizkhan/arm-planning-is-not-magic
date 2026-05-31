@@ -43,22 +43,26 @@ Q_START = np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 # Arm pointing left (+Y), 90° base rotation — must navigate around obstacles
 Q_GOAL = np.array([np.pi / 2, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
-# Obstacles placed between start and goal — verified free at both endpoints
+# Floor collision shape keeps the planned path above ground
+FLOOR = Box(np.array([0.0, 0.0, -0.15]), np.array([3.0, 3.0, 0.08]))
+
+# Obstacles along the diagonal swept by the arm from start→goal
+# Verified collision-free at both Q_START and Q_GOAL
 OBSTACLES = [
     {
-        "label": "front-left slab",
-        "meshcat": dict(center=(0.2, 0.25, 0.35), size=(0.3, 0.07, 0.45), color=(0.9, 0.2, 0.2, 0.65)),
-        "collision": Box(np.array([0.2, 0.25, 0.35]), np.array([0.3, 0.07, 0.45])),
+        "label": "diagonal slab",
+        "meshcat": dict(center=(0.22, 0.22, 0.4), size=(0.4, 0.06, 0.3), color=(0.9, 0.2, 0.2, 0.75)),
+        "collision": Box(np.array([0.22, 0.22, 0.4]), np.array([0.4, 0.06, 0.3])),
     },
     {
-        "label": "overhead bar",
-        "meshcat": dict(center=(0.1, 0.15, 0.62), size=(0.35, 0.3, 0.07), color=(0.2, 0.4, 0.9, 0.65)),
-        "collision": Box(np.array([0.1, 0.15, 0.62]), np.array([0.35, 0.3, 0.07])),
+        "label": "side pillar",
+        "meshcat": dict(center=(0.15, 0.38, 0.38), size=(0.06, 0.08, 0.55), color=(0.9, 0.6, 0.1, 0.75)),
+        "collision": Box(np.array([0.15, 0.38, 0.38]), np.array([0.06, 0.08, 0.55])),
     },
     {
-        "label": "right sphere",
-        "meshcat": dict(center=(0.35, 0.2, 0.3), radius=0.09, color=(0.2, 0.8, 0.2, 0.65)),
-        "collision": Sphere(np.array([0.35, 0.2, 0.3]), 0.09),
+        "label": "upper sphere",
+        "meshcat": dict(center=(0.3, 0.3, 0.42), radius=0.07, color=(0.2, 0.7, 0.9, 0.75)),
+        "collision": Sphere(np.array([0.3, 0.3, 0.42]), 0.07),
     },
 ]
 
@@ -66,9 +70,10 @@ OBSTACLES = [
 def main():
     print("=== Demo 09: Meshcat Collision-Aware Planning ===\n")
 
-    # --- Build collision manager ---
+    # --- Build collision manager (floor + obstacles) ---
     robot_bare = UR5RobotModel(use_opw=False, collision_manager=None)
     col_mgr = ShapeCollisionManager(robot_bare)
+    col_mgr.add_shape(FLOOR)  # prevent path from going underground
     for obs in OBSTACLES:
         col_mgr.add_shape(obs["collision"])
 
@@ -83,8 +88,8 @@ def main():
     viz = MeshcatVisualizer(open_browser=False)
     print()
     print("==> Open in browser: http://localhost:7000/static/")
-    print("    Waiting 12s before continuing...")
-    time.sleep(12)
+    print("    Waiting 6s before continuing...")
+    time.sleep(6)
 
     # --- Add obstacles to scene ---
     print("Adding obstacles to scene...")
