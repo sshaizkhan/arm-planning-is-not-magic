@@ -20,6 +20,8 @@ Then open the URL printed to the terminal in your browser.
 
 import numpy as np
 
+from core.kinematics.opw import OPWKinematics
+from core.kinematics.opw_parameters import OPWParameters
 from core.kinematics.urdf_kinematics import URDFKinematics
 from core.path_smoothing import smooth_path
 from core.pose_utils import IKSolver
@@ -48,9 +50,10 @@ SAFE_START_CONFIGS = [
 def main():
     print("=== Demo 08: Meshcat Visualization ===\n")
 
-    robot = UR5RobotModel(use_opw=False, collision_manager=None)
+    robot = UR5RobotModel(use_opw=True, collision_manager=None)
     fk = URDFKinematics()
-    ik_solver = IKSolver(robot)
+    opw_kin = OPWKinematics(robot, OPWParameters.make_ur5())
+    ik_solver = IKSolver(robot, opw_kin)
     state_space = JointStateSpace(robot)
 
     viz = MeshcatVisualizer(open_browser=True)
@@ -77,12 +80,10 @@ def main():
     T_goal = np.eye(4)
     T_goal[:3, :3] = goal_rot
     T_goal[:3, 3] = goal_pos
-    q_goals = ik_solver.solve(T_goal)
-    if not q_goals:
+    q_goal = ik_solver.solve(T_goal, reference_q=q_start)
+    if q_goal is None:
         print("IK failed — using fallback goal config")
         q_goal = SAFE_START_CONFIGS[1]
-    else:
-        q_goal = q_goals[0]
 
     print(f"Start config: {np.round(q_start, 3)}")
     print(f"Goal config:  {np.round(q_goal, 3)}")
@@ -95,25 +96,20 @@ def main():
     planner = OMPLRRTConnectPlanner(state_space)
     result = planner.plan(q_start, q_goal, timeout=10.0)
 
-    if result["path"] is None:
+    if result is None:
         print("Planning failed.")
         return
 
-    path = result["path"]
-    path = smooth_path(path, state_space, iterations=50)
+    path = result
+    path = smooth_path(path, collision_check=robot.in_collision, shortcut_iterations=50)
     print(f"Path found: {len(path)} waypoints")
 
     viz.visualize_path(path, fk_func=lambda q: (fk.forward_kinematics(q)[:3, 3], None))
     print("Planned path shown. Press Enter to parameterize and execute...")
     input()
 
-    parameterizer = ToppraTimeParameterizer(
-        velocity_limits=UR5_VELOCITY_LIMITS,
-        acceleration_limits=UR5_ACCEL_LIMITS,
-    )
-    traj_result = parameterizer.parameterize(path, q_start, q_goal)
-    trajectory = traj_result["trajectory"]
-    time_stamps = traj_result["time_stamps"]
+    parameterizer = ToppraTimeParameterizer(v_max=UR5_VELOCITY_LIMITS, a_max=UR5_ACCEL_LIMITS)
+    time_stamps, trajectory = parameterizer.compute(path)
     print(f"Trajectory: {len(trajectory)} points over {time_stamps[-1]:.2f}s")
 
     print("Executing trajectory in browser...")
