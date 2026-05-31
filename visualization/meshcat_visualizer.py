@@ -82,7 +82,7 @@ class MeshcatVisualizer:
 
         self.base_position = np.array(base_position)
         self._path_object_paths: List[str] = []
-        self._obstacle_count: Dict[str, int] = {"box": 0, "sphere": 0, "cylinder": 0, "marker": 0}
+        self._obstacle_count: Dict[str, int] = {"box": 0, "sphere": 0, "cylinder": 0, "marker": 0, "text": 0}
         self._last_ee_pos = np.zeros(3)
         self._last_ee_rot = np.eye(3)
 
@@ -239,6 +239,12 @@ class MeshcatVisualizer:
                     pos = np.array(result[0])
                 else:
                     pos = np.array(result[:3, 3])
+                if pos.shape != (3,):
+                    raise ValueError(
+                        f"fk_func must return a (3,) position vector (or tuple with one). "
+                        f"Got shape {pos.shape}. If returning a 4x4 matrix, pass it directly "
+                        f"(not wrapped in a tuple)."
+                    )
             else:
                 self.set_joint_positions(q)
                 pos = self._last_ee_pos.copy()
@@ -254,7 +260,7 @@ class MeshcatVisualizer:
         show_waypoints: bool = True,
         waypoint_color: Tuple[float, float, float] = (1.0, 0.0, 0.0),
         waypoint_size: float = 0.015,
-        lifetime: float = 0,
+        lifetime: float = 0,  # not supported by meshcat; reserved for API compatibility
     ) -> List[str]:
         """Visualize a planned path as a 3D EE trajectory line."""
         self.clear_path()
@@ -288,7 +294,7 @@ class MeshcatVisualizer:
         color: Tuple[float, float, float] = (0.0, 0.7, 1.0),
         line_width: float = 2,
         sample_every: int = 5,
-        lifetime: float = 0,
+        lifetime: float = 0,  # not supported by meshcat; reserved for API compatibility
     ) -> List[str]:
         """Visualize a dense trajectory as a smooth 3D curve (no waypoint markers)."""
         sampled = trajectory[::sample_every]
@@ -367,7 +373,7 @@ class MeshcatVisualizer:
         position: Tuple[float, float, float],
         color: Tuple[float, float, float] = (1, 0, 0),
         size: float = 0.05,
-        lifetime: float = 0,
+        lifetime: float = 0,  # not supported by meshcat; reserved for API compatibility
     ) -> str:
         """Add a small sphere marker. Returns meshcat path string."""
         n = self._obstacle_count["marker"]
@@ -388,11 +394,11 @@ class MeshcatVisualizer:
         position: Tuple[float, float, float],
         color: Tuple[float, float, float] = (1, 1, 1),
         size: float = 1.5,
-        lifetime: float = 0,
+        lifetime: float = 0,  # not supported by meshcat; reserved for API compatibility
     ) -> str:
         """Add a label marker at a 3D position (prints text to stdout; no native text in meshcat)."""
-        n = self._obstacle_count.get("text", 0)
-        self._obstacle_count["text"] = n + 1
+        n = self._obstacle_count["text"]
+        self._obstacle_count["text"] += 1
         path = f"labels/text_{n}"
         hex_color = _rgba_to_hex(list(color) + [1.0])
         sphere_radius = max(0.005, size * 0.008)
