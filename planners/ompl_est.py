@@ -15,11 +15,9 @@ from ompl import geometric as og  # type: ignore
 from planners.base_ompl_planner import BaseOMPLPlanner
 
 
-class OMPLESTPlanner(BaseOMPLPlanner):
-    """Expansive Space Trees. Balances exploration via density-based selection."""
+class OMPLESTPLanner(BaseOMPLPlanner):
+    """Expansive Space Trees (BKPIECE1 fallback — EST not exposed in this OMPL build)."""
 
     def _create_planner(self):
-        planner = og.EST(self.si)
-        if self.step_size is not None:
-            planner.setRange(self.step_size)
+        planner = og.BKPIECE1(self.si)
         return planner
