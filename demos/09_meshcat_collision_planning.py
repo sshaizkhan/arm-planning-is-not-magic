@@ -120,7 +120,7 @@ def main():
 
     path = result
     print(f"Raw path: {len(path)} waypoints")
-    path = smooth_path(path, state_space, iterations=150)
+    path = smooth_path(path, collision_check=robot.in_collision, shortcut_iterations=150)
     print(f"Smoothed: {len(path)} waypoints")
 
     # --- Show planned EE path ---
