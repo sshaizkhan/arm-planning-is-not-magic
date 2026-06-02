@@ -3,31 +3,31 @@
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  build    - Build the Docker image"
-	@echo "  up       - Start the container"
-	@echo "  down     - Stop the container"
-	@echo "  shell    - Open a shell in the running container"
-	@echo "  clean    - Remove containers and volumes"
-	@echo "  rebuild  - Rebuild the image from scratch"
+	@echo "  test-build    - Build the Docker image"
+	@echo "  test-run       - Start the container"
+	@echo "  test-down     - Stop the container"
+	@echo "  test-ssh    - Open a shell in the running container"
+	@echo "  test-clean    - Remove containers and volumes"
+	@echo "  test-rebuild  - Rebuild the image from scratch"
 	@echo "  test     - Run all demos to test the setup"
 
-build:
+test-build:
 	docker compose build
 
-up:
+test-run:
 	docker compose up -d
 
-down:
+test-down:
 	docker compose down
 
-shell:
+test-ssh:
 	docker compose exec arm-planning bash
 
-clean:
+test-clean:
 	docker compose down -v
 	docker rmi arm-planning-is-not-magic:latest 2>/dev/null || true
 
-rebuild: clean build
+test-rebuild: test-clean build
 
 test:
 	docker compose exec arm-planning python3 demos/01_plan_and_time.py
