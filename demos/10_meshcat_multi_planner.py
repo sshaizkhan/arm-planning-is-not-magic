@@ -28,7 +28,7 @@ import time
 
 import numpy as np
 
-from core.collision_manager import Box, Sphere, ShapeCollisionManager
+from core.collision_manager import Box, ShapeCollisionManager, Sphere
 from core.kinematics.urdf_kinematics import URDFKinematics
 from core.path_smoothing import smooth_path
 from core.robot_model import UR5RobotModel
@@ -85,7 +85,9 @@ def run_planner(name, state_space, q_start, q_goal, timeout=2.0):
                 "num_waypoints": 0}
 
     # Smooth raw RRT path — removes zigzags and sharp corners
-    collision_check = lambda q: not state_space.is_valid(q)
+    def collision_check(q):
+        return not state_space.is_valid(q)
+
     path = smooth_path(path, collision_check=collision_check, shortcut_iterations=200)
 
     v_max = np.ones(state_space.dim) * 2.0
@@ -194,7 +196,7 @@ def main():
 
     # Start meshcat
     viz = MeshcatVisualizer(open_browser=False)
-    print(f"\n==> Open in browser: http://localhost:7000/static/")
+    print("\n==> Open in browser: http://localhost:7000/static/")
     print("Waiting 8s before planning...")
     time.sleep(8)
 

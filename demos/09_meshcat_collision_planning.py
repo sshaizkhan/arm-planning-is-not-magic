@@ -20,7 +20,7 @@ import time
 
 import numpy as np
 
-from core.collision_manager import Box, Sphere, ShapeCollisionManager
+from core.collision_manager import Box, ShapeCollisionManager, Sphere
 from core.kinematics.urdf_kinematics import URDFKinematics
 from core.path_smoothing import smooth_path
 from core.robot_model import UR5RobotModel
