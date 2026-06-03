@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     python3-venv \
+    python3-tk \
+    mesa-utils \
     build-essential \
     cmake \
     pkg-config \
@@ -35,6 +37,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
         pip install --no-cache-dir \
             numpy \
             toppra \
+            pybullet \
             ruckig \
             matplotlib; \
     fi
@@ -42,6 +45,12 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # Install OMPL Python bindings
 # Try to import from system package first, fallback to pip
 RUN python3 -c "import ompl" 2>/dev/null || pip install --no-cache-dir ompl || echo "Warning: OMPL Python bindings not available"
+
+# Pin numpy<2 — toppra Cython extensions are compiled against numpy 1.x
+RUN pip install --no-cache-dir "numpy<2"
+
+# Install meshcat visualization dependencies
+RUN pip install --no-cache-dir meshcat yourdfpy
 
 # Copy project files
 COPY . /workspace/arm-planning-is-not-magic/
@@ -54,6 +63,7 @@ RUN pip install --no-cache-dir -e .
 
 # Set Python path
 ENV PYTHONPATH=/workspace/arm-planning-is-not-magic:${PYTHONPATH}
+ENV MPLBACKEND=TkAgg
 
 # Default command
 CMD ["/bin/bash"]
