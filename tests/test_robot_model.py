@@ -158,3 +158,69 @@ def test_in_collision_no_manager(robot, q_zero):
     """
     # robot fixture has collision_manager=None
     assert robot.in_collision(q_zero) is False
+
+
+# ---------------------------------------------------------------------------
+# URDFKinematics link_transforms
+# ---------------------------------------------------------------------------
+
+from core.kinematics.urdf_kinematics import URDFKinematics
+
+
+@pytest.fixture
+def urdf_kin():
+    return URDFKinematics()
+
+
+def test_link_transforms_returns_all_links(urdf_kin):
+    q = np.zeros(6)
+    transforms = urdf_kin.link_transforms(q)
+    expected_links = [
+        'base_link', 'shoulder_link', 'upper_arm_link',
+        'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'ee_link',
+    ]
+    for name in expected_links:
+        assert name in transforms, f"Missing link: {name}"
+        T = transforms[name]
+        assert T.shape == (4, 4), f"{name} transform is not 4x4"
+        assert np.allclose(T[3], [0, 0, 0, 1]), f"{name} last row not [0,0,0,1]"
+
+
+def test_link_transforms_base_is_identity(urdf_kin):
+    transforms = urdf_kin.link_transforms(np.zeros(6))
+    assert np.allclose(transforms['base_link'], np.eye(4))
+
+
+def test_link_transforms_ee_matches_forward_kinematics(urdf_kin):
+    """EE transform from link_transforms must match forward_kinematics."""
+    q = np.array([0.5, -0.5, 0.3, -0.7, 0.2, 0.1])
+    transforms = urdf_kin.link_transforms(q)
+    T_fk = urdf_kin.forward_kinematics(q)
+    assert np.allclose(transforms['ee_link'], T_fk, atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# API contract tests — prevent regression on IKSolver and smooth_path signatures
+# ---------------------------------------------------------------------------
+
+def test_ik_solver_requires_two_args():
+    """IKSolver.__init__ must require robot AND ik_solver — not just robot."""
+    import inspect
+    from core.pose_utils import IKSolver
+    sig = inspect.signature(IKSolver.__init__)
+    params = [p for p in sig.parameters if p != 'self']
+    assert len(params) >= 2, \
+        f"IKSolver.__init__ must accept at least 2 args (robot, ik_solver), got: {params}"
+    assert 'ik_solver' in params, f"IKSolver must have ik_solver param, got: {params}"
+
+
+def test_smooth_path_kwargs():
+    """smooth_path uses shortcut_iterations= not iterations=."""
+    import inspect
+    from core.path_smoothing import smooth_path
+    sig = inspect.signature(smooth_path)
+    params = list(sig.parameters.keys())
+    assert 'shortcut_iterations' in params, \
+        f"smooth_path must have shortcut_iterations param, got: {params}"
+    assert 'iterations' not in params, \
+        "smooth_path does not have iterations= param (use shortcut_iterations=)"

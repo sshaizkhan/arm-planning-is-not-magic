@@ -63,6 +63,16 @@ class URDFKinematics:
     _EE_XYZ = [0, 0.0823, 0]
     _EE_RPY = [0, 0, np.pi/2]
 
+    _LINK_NAMES = [
+        'base_link',
+        'shoulder_link',
+        'upper_arm_link',
+        'forearm_link',
+        'wrist_1_link',
+        'wrist_2_link',
+        'wrist_3_link',
+    ]
+
     def forward_kinematics(self, q: np.ndarray) -> np.ndarray:
         """
         Compute EE pose from joint angles.
@@ -82,6 +92,25 @@ class URDFKinematics:
         R_ee = _rpy_to_matrix(*self._EE_RPY)
         T = T @ _transform(self._EE_XYZ, R_ee)
         return T
+
+    def link_transforms(self, q: np.ndarray) -> dict:
+        """
+        Return world-frame 4x4 transform for every link including EE.
+
+        Keys: 'base_link', 'shoulder_link', 'upper_arm_link',
+              'forearm_link', 'wrist_1_link', 'wrist_2_link',
+              'wrist_3_link', 'ee_link'
+        """
+        transforms = {'base_link': np.eye(4)}
+        T = np.eye(4)
+        for i, (xyz, rpy, axis) in enumerate(self._JOINTS):
+            R_frame = _rpy_to_matrix(*rpy)
+            R_joint = _axis_rotation(axis, float(q[i]))
+            T = T @ _transform(xyz, R_frame @ R_joint)
+            transforms[self._LINK_NAMES[i + 1]] = T.copy()
+        R_ee = _rpy_to_matrix(*self._EE_RPY)
+        transforms['ee_link'] = (T @ _transform(self._EE_XYZ, R_ee)).copy()
+        return transforms
 
     def link_positions(self, q: np.ndarray) -> np.ndarray:
         """

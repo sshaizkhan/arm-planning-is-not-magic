@@ -3,6 +3,7 @@ numpy>=1.20.0
 toppra>=0.2.0
 ruckig>=0.11.0
 matplotlib>=3.5.0
+pybullet>=3.0.0
 
 # NOTE: OMPL is NOT pip-installable.
 # See docs/00_setup.md for installation instructions.

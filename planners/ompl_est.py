@@ -15,7 +15,7 @@ from ompl import geometric as og  # type: ignore
 from planners.base_ompl_planner import BaseOMPLPlanner
 
 
-class OMPLESTPLanner(BaseOMPLPlanner):
+class OMPLESTPlanner(BaseOMPLPlanner):
     """Expansive Space Trees (BKPIECE1 fallback — EST not exposed in this OMPL build)."""
 
     def _create_planner(self):
